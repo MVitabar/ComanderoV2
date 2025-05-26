@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Check, Star, ArrowRight, Play, BarChart3, Clock, Shield, Zap, Globe, Menu } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { LanguageSelector } from "@/components/language-selector"
 import { SocialSharing } from "@/components/integrations/social-sharing"
 import { IntegrationSettings } from "@/components/integrations/integration-settings"
@@ -14,8 +14,23 @@ import { AnalyticsScripts } from "@/components/integrations/analytics-scripts"
 import { useLocale } from "@/hooks/use-locale"
 
 export default function LandingPage() {
-  const { t } = useLocale()
+  const { t, locale } = useLocale()
+  const [mounted, setMounted] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted || !t?.auth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -49,92 +64,84 @@ export default function LandingPage() {
               </a>
             </nav>
 
-            {/* Desktop Actions */}
-            <div className="hidden lg:flex items-center space-x-3">
-              <LanguageSelector />
-              <SocialSharing />
-              <IntegrationSettings />
-              <Link href="/auth/login">
-                <Button variant="ghost" size="sm">
-                  {t.header.signIn}
-                </Button>
+            {/* Auth Buttons - Always visible on mobile */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <Link 
+                href="/auth/login" 
+                className="hidden sm:inline-flex items-center justify-center px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+              >
+                {t.auth.login}
               </Link>
-              <Link href="/auth/register">
-                <Button size="sm">{t.header.getStarted}</Button>
+              <Link
+                href="/auth/register"
+                className="inline-flex items-center justify-center px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-red-500 rounded-md hover:opacity-90 transition-opacity"
+              >
+                {t.auth.register}
               </Link>
-            </div>
-
-            {/* Mobile Menu Button */}
-            <div className="flex items-center space-x-2 lg:hidden">
-              <LanguageSelector />
-              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="sm" className="p-2">
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-80 sm:w-96">
-                  <div className="flex flex-col h-full">
-                    <div className="flex items-center justify-between mb-8">
-                      <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
-                          <span className="text-white font-bold text-sm">C</span>
-                        </div>
-                        <span className="text-lg font-bold text-gray-900">Comandero</span>
-                      </div>
-                    </div>
-
-                    <nav className="flex flex-col space-y-6 mb-8">
-                      <a
-                        href="#features"
-                        className="text-lg font-medium text-gray-700 hover:text-orange-500 transition-colors"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        {t.header.features}
-                      </a>
-                      <a
-                        href="#pricing"
-                        className="text-lg font-medium text-gray-700 hover:text-orange-500 transition-colors"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        {t.header.pricing}
-                      </a>
-                      <a
-                        href="#about"
-                        className="text-lg font-medium text-gray-700 hover:text-orange-500 transition-colors"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        {t.header.about}
-                      </a>
-                      <a
-                        href="#contact"
-                        className="text-lg font-medium text-gray-700 hover:text-orange-500 transition-colors"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        {t.header.contact}
-                      </a>
-                    </nav>
-
-                    <div className="flex flex-col space-y-4 mt-auto">
-                      <div className="flex items-center justify-center space-x-4 mb-4">
-                        <SocialSharing />
-                        <IntegrationSettings />
-                      </div>
-                      <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="outline" className="w-full">
-                          {t.header.signIn}
-                        </Button>
-                      </Link>
-                      <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)}>
-                        <Button className="w-full">{t.header.getStarted}</Button>
-                      </Link>
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
+              
+              {/* Mobile menu button */}
+              <button
+                type="button"
+                className="lg:hidden p-2 rounded-md text-gray-500 hover:text-gray-900 focus:outline-none"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                <Menu className="h-6 w-6" />
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden bg-white border-t">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              <a
+                href="#features"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t.header.features}
+              </a>
+              <a
+                href="#pricing"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t.header.pricing}
+              </a>
+              <a
+                href="#about"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t.header.about}
+              </a>
+              <a
+                href="#contact"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t.header.contact}
+              </a>
+              <div className="pt-2 border-t">
+                <Link
+                  href="/auth/login"
+                  className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t.auth.login}
+                </Link>
+                <Link
+                  href="/auth/register"
+                  className="mt-2 block w-full text-center px-3 py-2 rounded-md text-base font-medium text-white bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t.auth.register}
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Mobile-First Hero Section */}

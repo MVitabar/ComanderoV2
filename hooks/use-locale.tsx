@@ -13,12 +13,16 @@ interface LocaleContextType {
 const LocaleContext = createContext<LocaleContextType | undefined>(undefined)
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
+  // Usar un estado para manejar la hidratación
+  const [mounted, setMounted] = useState(false)
   const [locale, setLocaleState] = useState<SupportedLocale>(defaultLocale)
-  const [t, setTranslation] = useState<Translation>(getTranslation(defaultLocale))
+  const [t, setTranslation] = useState<Translation>(() => getTranslation(defaultLocale))
 
   useEffect(() => {
-    // Load saved locale or detect browser locale
-    const savedLocale = localStorage.getItem("comandero-locale") as SupportedLocale
+    setMounted(true)
+    // Solo acceder a localStorage en el cliente
+    const savedLocale = typeof window !== 'undefined' ? 
+      localStorage.getItem("comandero-locale") as SupportedLocale : null
     const initialLocale = savedLocale || detectBrowserLocale()
     setLocaleState(initialLocale)
     setTranslation(getTranslation(initialLocale))
@@ -27,10 +31,21 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const setLocale = (newLocale: SupportedLocale) => {
     setLocaleState(newLocale)
     setTranslation(getTranslation(newLocale))
-    localStorage.setItem("comandero-locale", newLocale)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("comandero-locale", newLocale)
+    }
   }
 
-  return <LocaleContext.Provider value={{ locale, setLocale, t }}>{children}</LocaleContext.Provider>
+  // No renderizar nada hasta que el componente se monte en el cliente
+  if (!mounted) {
+    return null
+  }
+
+  return (
+    <LocaleContext.Provider value={{ locale, setLocale, t }}>
+      {children}
+    </LocaleContext.Provider>
+  )
 }
 
 export function useLocale() {

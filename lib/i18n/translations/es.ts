@@ -9,6 +9,18 @@ export const es: Translation = {
     about: "Acerca de",
     contact: "Contacto",
   },
+  auth: {
+    login: "Iniciar Sesión",
+    register: "Registrarse",
+    email: "Correo electrónico",
+    password: "Contraseña",
+    forgotPassword: "¿Olvidaste tu contraseña?",
+    noAccount: "¿No tienes una cuenta?",
+    haveAccount: "¿Ya tienes una cuenta?",
+    signIn: "Iniciar Sesión",
+    signUp: "Registrarse",
+    logout: "Cerrar Sesión"
+  },
   hero: {
     title: "Gestión de Restaurantes Simplificada",
     subtitle: "Optimiza Tus Operaciones",
@@ -154,6 +166,6 @@ export const es: Translation = {
     social: {
       title: "Síguenos",
     },
-    copyright: "© 2024 Comandero. Todos los derechos reservados.",
+    copyright: " 2024 Comandero. Todos los derechos reservados.",
   },
 }

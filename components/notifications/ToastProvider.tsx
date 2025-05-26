@@ -1,7 +1,7 @@
 'use client';
 
 import { Toaster } from 'sonner';
-import { useEffect } from 'react';
+import { useEffect, ReactNode } from 'react';
 import { supabase } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 
@@ -51,20 +51,23 @@ const SimpleToast = () => {
       .subscribe();
 
     return () => {
-      channel.unsubscribe();
+      supabase.removeChannel(channel);
     };
   }, []);
 
   return null;
 };
 
-export function ToastProvider() {
+interface ToastProviderProps {
+  children: ReactNode;
+}
+
+export default function ToastProvider({ children }: ToastProviderProps) {
   return (
     <>
       <Toaster position="top-right" richColors />
       <SimpleToast />
+      {children}
     </>
   );
 }
-
-export default ToastProvider;

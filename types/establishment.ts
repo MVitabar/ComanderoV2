@@ -5,7 +5,7 @@ export interface Establishment {
   address: string
   city: string
   state: string
-  zipCode: string
+  zip_code: string
   country: string
   phone: string
   email: string
@@ -17,20 +17,22 @@ export interface Establishment {
   language: string
   plan: SubscriptionPlan
   status: EstablishmentStatus
-  ownerId: string
+  owner_id: string
   settings: EstablishmentSettings
-  createdAt: string
-  updatedAt: string
+  trial_ends_at?: string
+  created_at: string
+  updated_at: string
 }
 
-export type EstablishmentType = "restaurant" | "cafe" | "bar" | "fastfood" | "pizzeria" | "bakery"
-export type EstablishmentStatus = "active" | "inactive" | "suspended"
-export type SubscriptionPlan = "starter" | "professional" | "enterprise"
+export type EstablishmentType = "restaurant" | "cafe" | "bar" | "fastfood" | "pizzeria" | "bakery" | "other"
+export type EstablishmentStatus = "active" | "inactive" | "suspended" | "pending_verification"
+export type SubscriptionPlan = "free" | "starter" | "professional" | "enterprise"
 
 export interface EstablishmentSettings {
   notifications: NotificationSettings
   integrations: IntegrationSettings
   security: SecuritySettings
+  [key: string]: any // Para permitir propiedades adicionales
 }
 
 export interface NotificationSettings {
@@ -43,30 +45,23 @@ export interface NotificationSettings {
   emailNotifications: boolean
   smsNotifications: boolean
   pushNotifications: boolean
+  [key: string]: any // Para permitir propiedades adicionales
 }
 
 export interface IntegrationSettings {
   thermalPrinter: {
     enabled: boolean
     printerName: string
-    ipAddress: string
-    port: string
+    [key: string]: any // Para permitir propiedades adicionales
   }
-  paymentGateway: {
-    enabled: boolean
-    provider: string
-    testMode: boolean
-  }
-  analytics: {
-    enabled: boolean
-    googleAnalytics: string
-  }
+  [key: string]: any // Para permitir propiedades adicionales
 }
 
 export interface SecuritySettings {
   twoFactorAuth: boolean
-  sessionTimeout: string
+  sessionTimeout: number
   passwordPolicy: string
-  loginAttempts: string
-  ipWhitelist: string
+  loginAttempts: number
+  ipWhitelist: string[]
+  [key: string]: any // Para permitir propiedades adicionales
 }

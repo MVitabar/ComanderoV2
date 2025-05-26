@@ -3,8 +3,8 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { LocaleProvider } from "@/hooks/use-locale"
-import IntegrationsProvider from "@/hooks/use-integrations"
-import { ToastProvider } from "@/components/notifications/ToastProvider"
+import { IntegrationsProvider } from "@/hooks/use-integrations"
+import ToastProvider from "@/components/notifications/ToastProvider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -19,7 +19,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="es" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider
           attribute="class"
@@ -29,10 +29,11 @@ export default function RootLayout({
         >
           <IntegrationsProvider>
             <LocaleProvider>
-              {children}
+              <ToastProvider>
+                {children}
+              </ToastProvider>
             </LocaleProvider>
           </IntegrationsProvider>
-          <ToastProvider />
         </ThemeProvider>
       </body>
     </html>

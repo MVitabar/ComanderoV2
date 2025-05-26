@@ -5,6 +5,7 @@ import { Check, ChevronDown, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useLocale } from "@/hooks/use-locale"
+import { SupportedLocale } from "@/lib"
 
 const languages = [
   { code: "en", name: "English", flag: "🇺🇸" },
@@ -24,6 +25,14 @@ export function LanguageSelector() {
 
   const currentLanguage = languages.find((lang) => lang.code === locale) || languages[0]
 
+  const handleLocaleChange = (value: string) => {
+    // Verificar que el valor sea uno de los locales soportados
+    if (languages.some((lang) => lang.code === value)) {
+      setLocale(value as SupportedLocale);
+      setOpen(false)
+    }
+  };
+
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
@@ -38,10 +47,7 @@ export function LanguageSelector() {
         {languages.map((language) => (
           <DropdownMenuItem
             key={language.code}
-            onClick={() => {
-              setLocale(language.code)
-              setOpen(false)
-            }}
+            onClick={() => handleLocaleChange(language.code)}
             className="flex items-center justify-between cursor-pointer"
           >
             <div className="flex items-center gap-2">

@@ -1,17 +1,17 @@
 export interface User {
   id: string
   email: string
-  firstName: string
-  lastName: string
+  first_name: string
+  last_name: string
   role: UserRole
-  establishmentId: string
+  establishment_id: string
   avatar?: string
   phone?: string
   status: UserStatus
   permissions: UserPermissions
-  createdAt: string
-  updatedAt: string
-  lastLogin?: string
+  created_at: string
+  updated_at: string
+  last_login?: string
 }
 
 export interface UserPermissions {
@@ -50,20 +50,18 @@ export interface RegisterData {
   // Establishment information
   establishmentName: string
   establishmentType: string
-  address?: string
-  city?: string
-  country?: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  country: string
   timezone?: string
-  plan?: string
-  
-  // Terms and preferences
-  acceptTerms: boolean
-  acceptMarketing?: boolean
+  plan?: 'starter' | 'professional' | 'enterprise'
 }
 
 export interface AuthResponse {
-  user: any // Reemplazar con el tipo correcto de Supabase User
+  user: any
   profile: User | null
-  establishment?: any // Reemplazar con el tipo correcto de Establishment
+  establishment?: any
   requiresEmailVerification?: boolean
 }

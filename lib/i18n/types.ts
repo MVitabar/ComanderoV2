@@ -9,6 +9,18 @@ export interface Translation {
     about: string
     contact: string
   }
+  auth: {
+    login: string
+    register: string
+    email: string
+    password: string
+    forgotPassword: string
+    noAccount: string
+    haveAccount: string
+    signIn: string
+    signUp: string
+    logout: string
+  }
   hero: {
     title: string
     subtitle: string

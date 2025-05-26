@@ -29,7 +29,7 @@ type RegisterData = {
   country: string;
   phone: string;
   timezone: string;
-  plan: string;
+  plan: 'trial' | 'starter' | 'professional' | 'enterprise';
 };
 
 type User = {
@@ -41,6 +41,7 @@ type User = {
   establishment_id: string;
   status: string;
   phone: string;
+  email_verified?: boolean;
   permissions: {
     tables: boolean;
     orders: boolean;
@@ -50,6 +51,24 @@ type User = {
     users: boolean;
     settings: boolean;
   };
+};
+
+type AuthResponse = {
+  data: {
+    user: User | null;
+    session: any;
+  } | null;
+  error: Error | null;
+};
+
+type ProfileResponse = {
+  data: any | null;
+  error: Error | null;
+};
+
+type EstablishmentResponse = {
+  data: any | null;
+  error: Error | null;
 };
 
 export class AuthService {
@@ -150,357 +169,137 @@ export class AuthService {
     }
   }
 
-  static async signUp(registerData: RegisterData): Promise<{
-    user: any;
-    profile: any;
-    userRecord: any;
-    establishment: any;
-    requiresEmailVerification: boolean;
-    error?: string;
-  }> {
-    const registrationInProgress = sessionStorage.getItem('registrationInProgress');
-    
+  static async signUp(data: RegisterData) {
     try {
-      console.log('Iniciando registro para:', registerData.email);
-      
-      // Si ya hay un registro en proceso, verificamos si es el mismo usuario
-      if (registrationInProgress) {
-        const existingData = JSON.parse(registrationInProgress);
-        if (existingData.email === registerData.email) {
-          console.log('Registro ya en proceso para este usuario, omitiendo...');
-          throw new Error('El registro ya está en proceso');
-        }
-      }
-      
-      // Marcamos que hay un registro en proceso
-      sessionStorage.setItem('registrationInProgress', JSON.stringify({
-        email: registerData.email,
-        timestamp: new Date().toISOString()
-      }));
-      
-      // Validar contraseña
-      const passwordValidation = AuthService.validatePassword(registerData.password);
-      if (!passwordValidation.isValid) {
-        throw new Error(passwordValidation.errors[0] || 'La contraseña no cumple con los requisitos');
-      }
-
-      console.log('Creando usuario en Auth...');
+      console.log('Iniciando registro para:', data.email);
       
       // 1. Crear usuario en Auth
-      const { data, error } = await supabase.auth.signUp({
-        email: registerData.email,
-        password: registerData.password,
+      console.log('Creando usuario en Auth...');
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
         options: {
           data: {
-            first_name: registerData.firstName,
-            last_name: registerData.lastName,
-            phone: registerData.phone || '',
+            first_name: data.firstName,
+            last_name: data.lastName,
+            phone: data.phone || '',
           },
           emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
         },
       });
 
-      if (error) {
-        console.error('Error en signUp de Auth:', error);
-        throw error;
-      }
-
-      if (!data.user) {
-        throw new Error('No se pudo crear el usuario');
-      }
-
-      console.log('Usuario creado en Auth, ID:', data.user.id);
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('No se pudo crear el usuario');
       
-      try {
-        // 2. Crear o actualizar el perfil
-        console.log('Creando/Actualizando perfil...');
-        const profileData = {
-          id: data.user.id,
-          email: registerData.email,
-          first_name: registerData.firstName,
-          last_name: registerData.lastName,
-          phone: registerData.phone || null,
-          role: 'owner',
-          updated_at: new Date().toISOString()
-        };
+      console.log('Usuario creado en Auth, ID:', authData.user.id);
 
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert(profileData, {
-            onConflict: 'id',
-            ignoreDuplicates: false
-          });
-
-        if (profileError) {
-          // Si el error es porque el perfil ya existe, continuamos de todos modos
-          if (profileError.code !== '23505') {
-            console.error('Error al crear/actualizar perfil:', profileError);
-            throw new Error('Error al procesar el perfil del usuario');
-          }
-          console.log('El perfil ya existe, continuando...');
-        }
-
-        // 3. Crear usuario en la tabla users
-        console.log('Creando usuario en tabla users...');
-        const userData = {
-          id: data.user.id,
-          email: registerData.email,
-          first_name: registerData.firstName,
-          last_name: registerData.lastName,
-          phone: registerData.phone || null,
-          role: 'owner',  // Aseguramos que el rol sea 'owner'
-          status: 'active',
-          last_login: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-
-        try {
-          const { error: userError } = await supabase
-            .from('users')
-            .upsert(userData, {
-              onConflict: 'id',
-              ignoreDuplicates: false
-            });
-
-          if (userError) {
-            console.error('Error al crear/actualizar usuario:', userError);
-            // No lanzamos error para no interrumpir el flujo
-          } else {
-            console.log('Usuario creado/actualizado en tabla users');
-          }
-        } catch (userError) {
-          console.error('Excepción al crear/actualizar usuario:', userError);
-        }
-
-        // 4. Crear establecimiento
-        console.log('Creando establecimiento...');
-        
-        // Crear cliente con rol de servicio para saltar RLS
-        const serviceRoleKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY;
-        if (!serviceRoleKey) {
-          throw new Error('Falta la clave de servicio de Supabase');
-        }
-        
-        const supabaseAdmin = createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          serviceRoleKey,
-          {
-            auth: {
-              autoRefreshToken: false,
-              persistSession: false
-            }
-          }
-        );
-        
-        const { data: establishment, error: establishmentError } = await supabaseAdmin
-          .from('establishments')
-          .insert({
-            name: registerData.establishmentName,
-            type: registerData.establishmentType,
-            address: registerData.address || null,
-            city: registerData.city || null,
-            state: registerData.state || null,
-            zip_code: registerData.zipCode || null,
-            country: registerData.country || null,
-            phone: registerData.phone || '',
-            email: registerData.email,
-            timezone: registerData.timezone || 'America/Argentina/Buenos_Aires',
-            currency: 'ARS',
-            language: 'es',
-            plan: 'free',
-            status: 'pending_verification',
-            owner_id: data.user.id,
-            settings: {},
-          })
-          .select()
-          .single();
-
-        if (establishmentError) {
-          console.error('Error al crear establecimiento:', establishmentError);
-          throw new Error('Error al crear el establecimiento: ' + establishmentError.message);
-        }
-
-        console.log('Establecimiento creado con éxito:', establishment);
-
-        // 5. Actualizar el usuario con el ID del establecimiento
-        console.log('Actualizando usuario con ID de establecimiento...');
-        const { error: updateUserError } = await supabase
-          .from('users')
-          .update({ 
-            establishment_id: establishment.id,
-            role: 'owner'  // Aseguramos nuevamente el rol
-          })
-          .eq('id', data.user.id);
-
-        if (updateUserError) {
-          console.error('Error al actualizar usuario:', updateUserError);
-          // No lanzamos error para no interrumpir el flujo
-        }
-
-        // 6. Actualizar el perfil con el ID del establecimiento
-        console.log('Actualizando perfil con ID de establecimiento...');
-        const { error: updateProfileError } = await supabase
-          .from('profiles')
-          .update({ 
-            establishment_id: establishment.id,
-            role: 'owner'  // Aseguramos el rol también en el perfil
-          })
-          .eq('id', data.user.id);
-
-        if (updateProfileError) {
-          console.error('Error al actualizar perfil:', updateProfileError);
-          // No lanzamos error para no interrumpir el flujo
-        }
-
-        console.log('Registro completado exitosamente');
-        
-        // Limpiamos el indicador de registro en proceso
-        sessionStorage.removeItem('registrationInProgress');
-        
-        // 7. Obtener el perfil actualizado
-        let updatedProfile = null;
-        let userRecord = null;
-        
-        try {
-          // Obtener el perfil
-          const [{ data: profileData }, { data: userData }] = await Promise.all([
-            supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', data.user.id)
-              .single(),
-            supabase
-              .from('users')
-              .select('*')
-              .eq('id', data.user.id)
-              .single()
-          ]);
-          
-          updatedProfile = profileData;
-          userRecord = userData;
-        } catch (error) {
-          console.log('Error al obtener datos actualizados:', error);
-        }
-        
-        // Combinar datos de usuario, perfil y registro
-        const userResponse = {
-          ...data.user,
-          ...(updatedProfile || {}),
-          ...(userRecord || {})
-        };
-        
-        return {
-          user: userResponse,
-          profile: updatedProfile || {
-            id: data.user.id,
-            email: registerData.email,
-            first_name: registerData.firstName,
-            last_name: registerData.lastName,
-            phone: registerData.phone || null,
-            role: 'owner',
-          },
-          userRecord: userRecord || {
-            id: data.user.id,
-            email: registerData.email,
-            first_name: registerData.firstName,
-            last_name: registerData.lastName,
-            phone: registerData.phone || null,
-            role: 'owner',
-            status: 'active'
-          },
-          establishment,
-          requiresEmailVerification: true,
-        };
-      } catch (error) {
-        console.error('Error durante el registro:', error);
-        
-        // Si hay un error pero el usuario ya existe en Auth, intentamos continuar
-        if (data?.user?.id) {
-          console.log('Recuperando información existente...');
-          
-          // Intentamos obtener el perfil existente
-          let existingProfile = null;
-          try {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', data.user.id)
-              .single();
-            existingProfile = profileData;
-          } catch (profileError) {
-            console.log('No se pudo obtener el perfil existente:', profileError);
-          }
-            
-          // Intentamos obtener el establecimiento existente
-          let existingEstablishment = null;
-          try {
-            const { data: establishmentData } = await supabase
-              .from('establishments')
-              .select('*')
-              .eq('owner_id', data.user.id)
-              .single();
-            existingEstablishment = establishmentData;
-          } catch (establishmentError) {
-            console.log('No se pudo obtener el establecimiento existente:', establishmentError);
-          }
-            
-          return {
-            user: { ...data.user, ...existingProfile },
-            profile: existingProfile || {
-              id: data.user.id,
-              email: registerData.email,
-              first_name: registerData.firstName,
-              last_name: registerData.lastName,
-              phone: registerData.phone || null,
-              role: 'owner',
-            },
-            userRecord: existingProfile || {
-              id: data.user.id,
-              email: registerData.email,
-              first_name: registerData.firstName,
-              last_name: registerData.lastName,
-              phone: registerData.phone || null,
-              role: 'owner',
-              status: 'active'
-            },
-            establishment: existingEstablishment,
-            requiresEmailVerification: true,
-          };
-        }
-        
-        throw error;
-      }
-    } catch (error) {
-      console.error('Error en el proceso de registro:', error);
-      
-      // Limpiamos el indicador de registro en proceso en caso de error
-      sessionStorage.removeItem('registrationInProgress');
-      
-      let errorMessage = 'Error al registrarse. Por favor, inténtalo de nuevo.';
-      
-      if (error instanceof Error) {
-        console.error('Mensaje de error:', error.message);
-        
-        if (error.message.includes('already registered')) {
-          errorMessage = 'Este correo electrónico ya está registrado.';
-        } else if (error.message.includes('password')) {
-          errorMessage = 'La contraseña no cumple con los requisitos mínimos.';
-        } else if (error.message.includes('Database')) {
-          errorMessage = 'Error en la base de datos: ' + error.message;
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      return {
-        user: null,
-        profile: null,
-        userRecord: null,
-        establishment: null,
-        requiresEmailVerification: false,
-        error: errorMessage
+      // 2. Crear/Actualizar perfil en la tabla de perfiles
+      console.log('Creando/Actualizando perfil...');
+      const profileData = {
+        id: authData.user.id,
+        email: data.email,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        phone: data.phone || '',
+        status: 'pending_verification',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        role: 'owner',
+        // Eliminamos el objeto permissions y usamos columnas booleanas individuales
+        tables: true,
+        orders: true,
+        kitchen: true,
+        inventory: true,
+        reports: true,
+        users: true,
+        settings: true,
       };
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(profileData);
+
+      if (profileError) {
+        console.error('Error al crear/actualizar perfil:', profileError);
+        throw new Error(profileError.message);
+      }
+
+      console.log('Perfil creado/actualizado correctamente');
+
+      // 3. Crear establecimiento
+      console.log('Creando establecimiento...');
+      const establishmentData = {
+        name: data.establishmentName,
+        type: data.establishmentType,
+        address: data.address,
+        city: data.city,
+        state: data.state,
+        zip_code: data.zipCode,
+        country: data.country,
+        phone: data.phone,
+        timezone: data.timezone || 'America/Argentina/Buenos_Aires',
+        owner_id: authData.user.id,
+        status: 'active',
+        plan: data.plan || 'trial',
+        trial_ends_at: data.plan === 'trial' 
+          ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 14 días de prueba
+          : null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        // Campos adicionales requeridos
+        currency: 'ARS',
+        language: 'es',
+        settings: {},
+        email: data.email
+      };
+
+      const { data: establishmentResult, error: establishmentError } = await supabase
+        .from('establishments')
+        .insert([establishmentData])
+        .select('*')
+        .single();
+
+      if (establishmentError) {
+        console.error('Error al crear el establecimiento:', establishmentError);
+        throw establishmentError;
+      }
+      
+      console.log('Establecimiento creado con ID:', establishmentResult.id);
+
+      // 4. Asociar el usuario al establecimiento
+      const { error: userEstablishmentError } = await supabase
+        .from('profiles')
+        .update({ establishment_id: establishmentResult.id })
+        .eq('id', authData.user.id);
+
+      if (userEstablishmentError) {
+        console.error('Error al asociar usuario con establecimiento:', userEstablishmentError);
+        // No lanzamos error aquí para no interrumpir el flujo
+      }
+
+      // 5. Enviar correo de verificación
+      console.log('Enviando correo de verificación...');
+      const { error: verificationError } = await supabase.auth.resend({
+        type: 'signup',
+        email: data.email,
+        options: {
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+        },
+      });
+
+      if (verificationError) {
+        console.error('Error al enviar correo de verificación:', verificationError);
+        // No lanzamos error aquí para no interrumpir el flujo
+      }
+
+      return { 
+        user: authData.user, 
+        establishment: establishmentResult,
+        session: authData.session 
+      };
+    } catch (error) {
+      console.error('Error durante el registro:', error);
+      throw error;
     }
   }
 
@@ -510,82 +309,157 @@ export class AuthService {
   }
 
   static async verifyEmail(token: string) {
-    const { data, error } = await supabase.auth.verifyOtp({
-      token_hash: token,
-      type: 'email'
-    });
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash: token,
+        type: 'email'
+      });
 
-    if (error) throw error;
-    if (!data.user) throw new Error("User not found");
+      if (error) throw error;
+      if (!data.user) throw new Error("User not found");
 
-    // Actualizar el estado de verificación en la base de datos
-    const { error: updateError } = await supabase
-      .from("users")
-      .update({ status: "active" })
-      .eq("id", data.user.id);
+      // Actualizar el estado de verificación en la base de datos
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ status: "active" })
+        .eq("id", data.user.id);
 
-    if (updateError) throw updateError;
+      if (updateError) throw updateError;
 
-    // Actualizar el establecimiento a estado activo
-    const { error: estError } = await supabase
-      .from("establishments")
-      .update({ status: "active" })
-      .eq("owner_id", data.user.id);
+      // Actualizar el establecimiento a estado activo
+      const { error: estError } = await supabase
+        .from("establishments")
+        .update({ status: "active" })
+        .eq("owner_id", data.user.id);
 
-    if (estError) console.error("Error updating establishment status:", estError);
+      if (estError) console.error("Error updating establishment status:", estError);
 
-    return { success: true };
+      return { 
+        success: true, 
+        user: data.user,
+        session: data.session 
+      };
+    } catch (error) {
+      console.error('Error in verifyEmail:', error);
+      throw error;
+    }
   }
 
   static async resendVerificationEmail(email: string) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
-    const redirectTo = `${siteUrl}/auth/verify-email?type=signup&email=${encodeURIComponent(email)}`;
+    try {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+      const redirectTo = `${siteUrl}/auth/callback`;
+      
+      const { data, error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: redirectTo,
+        },
+      });
 
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      options: {
-        emailRedirectTo: redirectTo,
-      },
-    });
-
-    if (error) throw error;
-    return { success: true };
+      if (error) throw error;
+      
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error reenviando correo de verificación:', error);
+      return { data: null, error };
+    }
   }
 
-  static async getCurrentUser(): Promise<User | null> {
-    const {
-      data: { user },
-      error: userError
-    } = await supabase.auth.getUser();
+  static async getSession() {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error obteniendo sesión:', error);
+      return { data: null, error };
+    }
+  }
 
-    if (userError || !user) return null;
+  static async getUser() {
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) throw error;
+      return { data, error: null };
+    } catch (error) {
+      console.error('Error obteniendo usuario:', error);
+      return { data: null, error };
+    }
+  }
 
-    const { data: profile, error } = await supabase
-      .from("users")
-      .select("*")
-      .eq("id", user.id)
+  static async getCurrentUser(): Promise<AuthResponse> {
+    const { data, error } = await supabase.auth.getUser();
+  
+    if (error || !data.user) {
+      return { data: null, error: error || new Error('No hay usuario autenticado') };
+    }
+  
+    // Obtener el perfil del usuario
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+    
+    if (profileError) {
+      return { data: null, error: profileError };
+    }
+  
+    // Combinar datos de auth y perfil
+    const userData = {
+      ...data.user,
+      ...profile,
+      email: data.user.email || '',
+    };
+  
+    return { 
+      data: { 
+        user: userData as User,
+        session: null 
+      }, 
+      error: null 
+    };
+  }
+
+  static async getProfile(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
       .single();
 
-    if (error || !profile) return null;
+    return { data, error };
+  }
 
-    // Verificar si el correo está verificado
-    if (!user.email_confirmed_at) {
-      return null;
-    }
+  static async getEstablishment(establishmentId: string) {
+    const { data, error } = await supabase
+      .from('establishments')
+      .select('*')
+      .eq('id', establishmentId)
+      .single();
 
-    return { ...profile, email: user.email || profile.email };
+    return { data, error };
   }
 
   static async updateProfile(userId: string, updates: Partial<User>) {
     const { data, error } = await supabase
-      .from("users")
+      .from('profiles')
       .update(updates)
-      .eq("id", userId)
+      .eq('id', userId)
       .select()
       .single();
 
-    if (error) throw error;
-    return data;
+    return { data, error };
+  }
+
+  // Verificar OTP (One Time Password)
+  static async verifyOtp(params: {
+    token_hash: string;
+    type: 'signup' | 'invite' | 'magiclink' | 'recovery' | 'email_change';
+  }) {
+    const { data, error } = await supabase.auth.verifyOtp(params);
+    return { data, error };
   }
 }
