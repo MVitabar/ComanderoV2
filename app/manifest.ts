@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Comandero",
     description:
       "Comprehensive multi-tenant SaaS platform for restaurant management with table control, orders, inventory, and more.",
-    start_url: "/auth/login",
+    start_url: "/login",
     display: "standalone",
     background_color: "#ffffff",
     theme_color: "#000000",
