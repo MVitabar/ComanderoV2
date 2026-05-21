@@ -340,9 +340,18 @@ export class AuthService {
 
   static async getCurrentUser(): Promise<AuthResponse> {
     const { data, error } = await supabase.auth.getUser();
-  
-    if (error || !data.user) {
-      return { data: null, error: error || new Error('No hay usuario autenticado') };
+
+    // 403 es normal cuando no hay sesión - no es un error real
+    if (error) {
+      if (error.status === 403) {
+        return { data: null, error: null };
+      }
+      console.error('Error al obtener usuario:', error);
+      return { data: null, error };
+    }
+
+    if (!data.user) {
+      return { data: null, error: null };
     }
   
     // Obtener el perfil del usuario
