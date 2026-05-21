@@ -165,19 +165,24 @@ server.on('error', (error: Error) => {
   console.error('WebSocket server error:', error);
 });
 
-// Start the server
-const PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 3001;
-server.listen(PORT, () => {
-  console.log(`WebSocket server running on port ${PORT}`);
-});
+// Start the server only in development or if explicitly enabled
+const isVercel = process.env.VERCEL === '1';
+const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Cleanup on process exit
-process.on('SIGTERM', () => {
-  console.log('Shutting down WebSocket server...');
-  io.close();
-  server.close();
-  process.exit(0);
-});
+if (!isVercel && isDevelopment) {
+  const PORT = process.env.WS_PORT ? parseInt(process.env.WS_PORT) : 3001;
+  server.listen(PORT, () => {
+    console.log(`WebSocket server running on port ${PORT}`);
+  });
+
+  // Cleanup on process exit
+  process.on('SIGTERM', () => {
+    console.log('Shutting down WebSocket server...');
+    io.close();
+    server.close();
+    process.exit(0);
+  });
+}
 
 // Export the WebSocket server for use in other files
 export const webSocketServer = {
