@@ -1,4 +1,4 @@
-import { createClient, supabase } from './client';
+import { createClient, createServiceClient, supabase } from './client';
 
 export type SignInCredentials = {
   email: string;
@@ -215,7 +215,8 @@ export class AuthService {
         settings: true,
       };
 
-      const { error: profileError } = await supabase
+      const serviceClient = createServiceClient();
+      const { error: profileError } = await serviceClient
         .from('profiles')
         .upsert(profileData);
 
@@ -241,7 +242,7 @@ export class AuthService {
         owner_id: authData.user.id,
         status: 'active',
         plan: data.plan || 'trial',
-        trial_ends_at: data.plan === 'trial' 
+        trial_ends_at: data.plan === 'trial'
           ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 14 días de prueba
           : null,
         created_at: new Date().toISOString(),
@@ -253,7 +254,7 @@ export class AuthService {
         email: data.email
       };
 
-      const { data: establishmentResult, error: establishmentError } = await supabase
+      const { data: establishmentResult, error: establishmentError } = await serviceClient
         .from('establishments')
         .insert([establishmentData])
         .select('*')
@@ -263,11 +264,11 @@ export class AuthService {
         console.error('Error al crear el establecimiento:', establishmentError);
         throw establishmentError;
       }
-      
+
       console.log('Establecimiento creado con ID:', establishmentResult.id);
 
       // 4. Asociar el usuario al establecimiento
-      const { error: userEstablishmentError } = await supabase
+      const { error: userEstablishmentError } = await serviceClient
         .from('profiles')
         .update({ establishment_id: establishmentResult.id })
         .eq('id', authData.user.id);
