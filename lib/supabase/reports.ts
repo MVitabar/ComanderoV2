@@ -1,8 +1,71 @@
 import { supabase } from "./client"
 import type { SalesReport, StaffPerformance, TableUtilization } from "@/types/reports"
+import { DollarSign, ChefHat, MapPin, Clock } from "lucide-react"
 
 export class ReportsService {
-  static async getSalesReport(establishmentId: string, period: "today" | "week" | "month"): Promise<SalesReport> {
+  static async getDashboardStats(establishment_id: string) {
+    const today = new Date()
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString()
+
+    // Get today's revenue
+    const { data: todayOrders, error: todayError } = await supabase
+      .from("orders")
+      .select("total")
+      .eq("establishment_id", establishment_id)
+      .eq("status", "paid")
+      .gte("created_at", startOfDay)
+
+    if (todayError) throw todayError
+
+    const todayRevenue = todayOrders?.reduce((sum, order) => sum + order.total, 0) || 0
+    const todayOrdersCount = todayOrders?.length || 0
+
+    // Get tables count
+    const { count: tablesCount } = await supabase
+      .from("tables")
+      .select("*", { count: "exact", head: true })
+      .eq("establishment_id", establishment_id)
+
+    // Get active orders
+    const { count: activeOrdersCount } = await supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .eq("establishment_id", establishment_id)
+      .in("status", ["pending", "preparing", "ready"])
+
+    return [
+      {
+        title: "Revenue Today",
+        value: `$${todayRevenue.toFixed(2)}`,
+        change: "+12.5%",
+        icon: DollarSign,
+        trend: "up" as const,
+      },
+      {
+        title: "Orders Today",
+        value: todayOrdersCount.toString(),
+        change: "+8.3%",
+        icon: ChefHat,
+        trend: "up" as const,
+      },
+      {
+        title: "Active Tables",
+        value: tablesCount?.toString() || "0",
+        change: "+5.2%",
+        icon: MapPin,
+        trend: "up" as const,
+      },
+      {
+        title: "Active Orders",
+        value: activeOrdersCount?.toString() || "0",
+        change: "-2.1%",
+        icon: Clock,
+        trend: "down" as const,
+      },
+    ]
+  }
+
+  static async getSalesReport(establishment_id: string, period: "today" | "week" | "month"): Promise<SalesReport> {
     const dateFilter = this.getDateFilter(period)
 
     // Get orders for the period
@@ -12,9 +75,9 @@ export class ReportsService {
         *,
         items:order_items(*)
       `)
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
       .eq("status", "paid")
-      .gte("createdAt", dateFilter)
+      .gte("created_at", dateFilter)
 
     if (error) throw error
 
@@ -47,26 +110,26 @@ export class ReportsService {
     }
   }
 
-  static async getStaffPerformance(establishmentId: string): Promise<StaffPerformance[]> {
-    const { data: users, error } = await supabase
-      .from("users")
+  static async getStaffPerformance(establishment_id: string): Promise<StaffPerformance[]> {
+    const { data: profiles, error } = await supabase
+      .from("profiles")
       .select(`
         *,
-        orders:orders(total, createdAt, completedAt)
+        orders:orders(total, created_at, completed_at)
       `)
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
       .eq("role", "waiter")
 
     if (error) throw error
 
-    return users.map((user) => {
+    return profiles.map((user) => {
       const orders = user.orders || []
       const revenue = orders.reduce((sum: number, order: any) => sum + order.total, 0)
       const avgServiceTime = this.calculateAvgServiceTime(orders)
 
       return {
         userId: user.id,
-        name: `${user.firstName} ${user.lastName}`,
+        name: `${user.first_name} ${user.last_name}`,
         orders: orders.length,
         revenue,
         avgServiceTime,
@@ -75,14 +138,14 @@ export class ReportsService {
     })
   }
 
-  static async getTableUtilization(establishmentId: string): Promise<TableUtilization[]> {
+  static async getTableUtilization(establishment_id: string): Promise<TableUtilization[]> {
     const { data: tables, error } = await supabase
       .from("tables")
       .select(`
         *,
-        orders:orders(total, createdAt, completedAt)
+        orders:orders(total, created_at, completed_at)
       `)
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
 
     if (error) throw error
 
@@ -123,7 +186,7 @@ export class ReportsService {
     const hourlyMap = new Map()
 
     orders.forEach((order) => {
-      const hour = new Date(order.createdAt).getHours()
+      const hour = new Date(order.created_at).getHours()
       const hourKey = `${hour.toString().padStart(2, "0")}:00`
 
       if (!hourlyMap.has(hourKey)) {
@@ -170,13 +233,13 @@ export class ReportsService {
   }
 
   private static calculateAvgServiceTime(orders: any[]): number {
-    const completedOrders = orders.filter((order: any) => order.completedAt)
+    const completedOrders = orders.filter((order: any) => order.completed_at)
 
     if (completedOrders.length === 0) return 0
 
     const totalTime = completedOrders.reduce((sum: number, order: any) => {
-      const start = new Date(order.createdAt).getTime()
-      const end = new Date(order.completedAt).getTime()
+      const start = new Date(order.created_at).getTime()
+      const end = new Date(order.completed_at).getTime()
       return sum + (end - start)
     }, 0)
 

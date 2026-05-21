@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import {
   ChefHat,
   Home,
@@ -14,6 +15,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 
 import {
   Sidebar,
@@ -83,7 +85,46 @@ const menuItems = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const [establishmentName, setEstablishmentName] = useState("Cargando...")
 
+  const handleLogout = async () => {
+    try {
+      const { AuthService } = await import('@/lib/supabase/auth')
+      await AuthService.signOut()
+      window.location.href = '/auth/login'
+    } catch (error) {
+      console.error('Error logging out:', error)
+    }
+  }
+
+  // Cargar nombre del establecimiento
+  useEffect(() => {
+    const loadEstablishment = async () => {
+      if (user?.establishment_id) {
+        try {
+          const { EstablishmentService } = await import('@/lib/supabase/establishments')
+          const establishment = await EstablishmentService.getEstablishment(user.establishment_id)
+          if (establishment) {
+            setEstablishmentName(establishment.name)
+          }
+        } catch (error) {
+          console.error('Error loading establishment:', error)
+          setEstablishmentName("Error")
+        }
+      } else {
+        setEstablishmentName("Sin establecimiento")
+      }
+    }
+
+    loadEstablishment()
+  }, [user?.establishment_id])
+
+  // Obtener iniciales del nombre
+  const getInitials = (firstName: string, lastName: string) => {
+    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase()
+  }
+  
   return (
     <Sidebar className="border-r">
       <SidebarHeader className="border-b">
@@ -138,15 +179,21 @@ export function AppSidebar() {
             <Button variant="ghost" className="w-full justify-start h-auto p-2 sm:p-3">
               <div className="flex items-center gap-2 sm:gap-3 w-full min-w-0">
                 <Avatar className="h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0">
-                  <AvatarImage src="/placeholder-user.jpg" />
-                  <AvatarFallback className="text-xs">JD</AvatarFallback>
+                  <AvatarImage src={user?.avatar || ""} />
+                  <AvatarFallback className="text-xs">
+                    {getInitials(user?.first_name || "", user?.last_name || "")}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="text-xs sm:text-sm font-medium truncate">John Doe</p>
-                  <p className="text-xs text-muted-foreground truncate">The Golden Spoon</p>
+                  <p className="text-xs sm:text-sm font-medium truncate">
+                    {user?.first_name && user?.last_name 
+                      ? `${user.first_name} ${user.last_name}` 
+                      : user?.email || "Usuario"}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">{establishmentName}</p>
                 </div>
                 <Badge variant="secondary" className="text-xs px-1 py-0 flex-shrink-0">
-                  Owner
+                  {user?.role || "User"}
                 </Badge>
               </div>
             </Button>
@@ -158,12 +205,14 @@ export function AppSidebar() {
                 <span>Switch Establishment</span>
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Account Settings</span>
+            <DropdownMenuItem asChild>
+              <Link href="/dashboard/settings" className="flex items-center">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Account Settings</span>
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>

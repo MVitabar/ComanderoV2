@@ -3,17 +3,20 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DollarSign, ChefHat, Clock, MapPin, Building } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { useSearchParams } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { RecentOrders } from "@/components/dashboard/recent-orders"
 import { InventoryAlerts } from "@/components/dashboard/inventory-alerts"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 
 export default function Dashboard() {
+  const { user } = useAuth()
   const searchParams = useSearchParams()
   const [selectedEstablishment, setSelectedEstablishment] = useState("")
   const [establishments, setEstablishments] = useState<Array<{id: string, name: string, type: string}>>([])
@@ -27,45 +30,95 @@ export default function Dashboard() {
   }>>([])
   const [recentOrders, setRecentOrders] = useState<Array<any>>([])
   const [lowStockItems, setLowStockItems] = useState<Array<any>>([])
+  const [showProfileAlert, setShowProfileAlert] = useState(false)
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!user?.id) {
+        console.log('No hay usuario autenticado')
+        return
+      }
+
+      // Verificar si el perfil tiene datos de prueba
+      if (user.first_name === 'John' && user.last_name === 'Doe') {
+        setShowProfileAlert(true)
+      }
+
       setIsLoading(true)
       try {
-        // Aquí iría la llamada a tu API para obtener los establecimientos
-        // const response = await fetch('/api/establishments')
-        // const data = await response.json()
-        // setEstablishments(data)
-        
-        // Si no hay establecimientos, establecer un estado vacío
-        setEstablishments([])
-        
-        // Cargar estadísticas
-        // const statsResponse = await fetch('/api/dashboard/stats')
-        // setStats(await statsResponse.json())
-        
-        // Cargar órdenes recientes
-        // const ordersResponse = await fetch('/api/orders/recent')
-        // setRecentOrders(await ordersResponse.json())
-        
-        // Cargar artículos con bajo stock
-        // const inventoryResponse = await fetch('/api/inventory/low-stock')
-        // setLowStockItems(await inventoryResponse.json())
-        
+        console.log('Cargando establecimientos para usuario:', user.id)
+
+        // Cargar establecimientos desde Supabase
+        const { EstablishmentService } = await import('@/lib/supabase/establishments')
+        const establishmentsData = await EstablishmentService.getEstablishments(user.id)
+        console.log('Establecimientos cargados:', establishmentsData)
+        setEstablishments(establishmentsData || [])
+
+        // Si hay establecimientos, cargar datos del primero
+        if (establishmentsData && establishmentsData.length > 0) {
+          const establishment_id = establishmentsData[0].id
+          console.log('Usando establishment:', establishment_id)
+
+          // Cargar estadísticas
+          try {
+            const { ReportsService } = await import('@/lib/supabase/reports')
+            const statsData = await ReportsService.getDashboardStats(establishment_id)
+            console.log('Estadísticas cargadas:', statsData)
+            setStats(statsData || [])
+          } catch (statsError) {
+            console.error('Error cargando estadísticas:', statsError)
+            console.error('Detalles del error de estadísticas:', JSON.stringify(statsError, null, 2))
+            setStats([])
+          }
+
+          // Cargar órdenes recientes
+          try {
+            const { OrderService } = await import('@/lib/supabase/orders')
+            const ordersData = await OrderService.getRecentOrders(establishment_id)
+            console.log('Órdenes recientes cargadas:', ordersData)
+            setRecentOrders(ordersData || [])
+          } catch (ordersError) {
+            console.error('Error cargando órdenes:', ordersError)
+            console.error('Detalles del error de órdenes:', JSON.stringify(ordersError, null, 2))
+            setRecentOrders([])
+          }
+
+          // Cargar artículos con bajo stock
+          try {
+            const { InventoryService } = await import('@/lib/supabase/inventory')
+            const lowStockData = await InventoryService.getLowStockItems(establishment_id)
+            console.log('Items bajo stock cargados:', lowStockData)
+            setLowStockItems(lowStockData || [])
+          } catch (inventoryError) {
+            console.error('Error cargando inventario:', inventoryError)
+            console.error('Detalles del error de inventario:', JSON.stringify(inventoryError, null, 2))
+            setLowStockItems([])
+          }
+        } else {
+          console.log('No hay establecimientos para el usuario')
+        }
+
       } catch (error) {
         console.error('Error loading dashboard data:', error)
+        console.error('Tipo de error:', typeof error)
+        console.error('Error como JSON:', JSON.stringify(error, null, 2))
+        console.error('Propiedades del error:', Object.keys(error || {}))
+        if (error instanceof Error) {
+          console.error('Mensaje del error:', error.message)
+          console.error('Stack del error:', error.stack)
+        }
       } finally {
         setIsLoading(false)
       }
     }
-    
+
     fetchData()
-  }, [])
+  }, [user?.id])
 
   useEffect(() => {
-    const establishmentId = searchParams.get("establishment")
-    if (establishmentId && establishments.length > 0) {
-      setSelectedEstablishment(establishmentId)
+    const establishment_id = searchParams.get("establishment")
+    if (establishment_id && establishments.length > 0) {
+      setSelectedEstablishment(establishment_id)
     } else if (establishments.length > 0) {
       setSelectedEstablishment(establishments[0]?.id || "")
     }
@@ -119,6 +172,35 @@ export default function Dashboard() {
               )}
             </div>
           </header>
+
+          {/* Profile Alert - Show if profile has test data */}
+          {showProfileAlert && (
+            <Card className="border-orange-500 bg-orange-50 dark:bg-orange-950">
+              <CardContent className="pt-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <p className="font-medium text-orange-900 dark:text-orange-100">
+                      Tu perfil tiene datos de prueba
+                    </p>
+                    <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
+                      Tu nombre actual es "John Doe". Por favor actualiza tu perfil con tus datos reales.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-orange-500 text-orange-700 hover:bg-orange-100 dark:text-orange-300 dark:hover:bg-orange-900"
+                    onClick={() => {
+                      // Navigate to settings page to update profile
+                      window.location.href = '/dashboard/settings'
+                    }}
+                  >
+                    Actualizar Perfil
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <main className="flex-1 p-3 sm:p-4 lg:p-6 space-y-4 sm:space-y-6">
             {/* Mobile-First Establishment Context Alert */}

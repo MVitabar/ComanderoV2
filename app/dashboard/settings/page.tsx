@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -19,26 +19,37 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Building, Bell, CreditCard, Shield, Printer, Globe, Save, Upload, Trash2 } from "lucide-react"
+import { Building, Bell, CreditCard, Shield, Printer, Globe, Save, Upload, Trash2, User } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function SettingsPage() {
+  const { user } = useAuth()
+  const [isLoading, setIsLoading] = useState(true)
+  
+  const [profileSettings, setProfileSettings] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+  })
+
   const [establishmentSettings, setEstablishmentSettings] = useState({
-    name: "The Golden Spoon",
+    name: "",
     type: "restaurant",
-    address: "123 Main St",
-    city: "New York",
-    state: "NY",
-    zipCode: "10001",
-    phone: "+1 (555) 123-4567",
-    email: "info@goldenspoon.com",
-    website: "www.goldenspoon.com",
-    description: "Fine dining restaurant with contemporary cuisine",
-    timezone: "America/New_York",
-    currency: "USD",
-    language: "en",
-    logo: "/placeholder.svg?height=80&width=80",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    phone: "",
+    email: "",
+    website: "",
+    description: "",
+    timezone: "America/Argentina/Buenos_Aires",
+    currency: "ARS",
+    language: "es",
+    logo: "",
   })
 
   const [notificationSettings, setNotificationSettings] = useState({
@@ -81,9 +92,120 @@ export default function SettingsPage() {
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
-  const handleSaveEstablishment = () => {
-    // Save establishment settings
-    console.log("Saving establishment settings:", establishmentSettings)
+  // Cargar datos reales del perfil y establecimiento
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user?.id) return
+
+      try {
+        setIsLoading(true)
+
+        // Cargar datos del perfil
+        setProfileSettings({
+          firstName: user.first_name || "",
+          lastName: user.last_name || "",
+          email: user.email || "",
+          phone: user.phone || "",
+        })
+
+        // Cargar datos del establecimiento
+        if (user.establishment_id) {
+          const { EstablishmentService } = await import('@/lib/supabase/establishments')
+          const establishment = await EstablishmentService.getEstablishment(user.establishment_id)
+          
+          if (establishment) {
+            setEstablishmentSettings({
+              name: establishment.name || "",
+              type: establishment.type || "restaurant",
+              address: establishment.address || "",
+              city: establishment.city || "",
+              state: establishment.state || "",
+              zipCode: establishment.zip_code || "",
+              phone: establishment.phone || "",
+              email: establishment.email || "",
+              website: establishment.website || "",
+              description: establishment.description || "",
+              timezone: establishment.timezone || "America/Argentina/Buenos_Aires",
+              currency: establishment.currency || "ARS",
+              language: establishment.language || "es",
+              logo: establishment.logo || "",
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadData()
+  }, [user?.id, user?.establishment_id, user?.first_name, user?.last_name, user?.email, user?.phone])
+
+  const handleSaveProfile = async () => {
+    if (!user?.id) {
+      alert('Usuario no autenticado')
+      return
+    }
+    
+    try {
+      const { AuthService } = await import('@/lib/supabase/auth')
+      const { error } = await AuthService.updateProfile(user.id, {
+        first_name: profileSettings.firstName,
+        last_name: profileSettings.lastName,
+        email: profileSettings.email,
+        phone: profileSettings.phone,
+      })
+      
+      if (error) {
+        console.error('Error al actualizar perfil:', error)
+        alert('Error al actualizar perfil: ' + error.message)
+      } else {
+        alert('Perfil actualizado correctamente')
+        // Recargar la página para mostrar los datos actualizados
+        window.location.reload()
+      }
+    } catch (error) {
+      console.error('Error al actualizar perfil:', error)
+      alert('Error al actualizar perfil')
+    }
+  }
+
+  const handleSaveEstablishment = async () => {
+    if (!user?.establishment_id) {
+      alert('No hay establecimiento asociado')
+      return
+    }
+
+    try {
+      const { EstablishmentService } = await import('@/lib/supabase/establishments')
+      const { error } = await EstablishmentService.updateEstablishment(user.establishment_id, {
+        name: establishmentSettings.name,
+        type: establishmentSettings.type as any,
+        address: establishmentSettings.address,
+        city: establishmentSettings.city,
+        state: establishmentSettings.state,
+        zip_code: establishmentSettings.zipCode,
+        phone: establishmentSettings.phone,
+        email: establishmentSettings.email,
+        website: establishmentSettings.website,
+        description: establishmentSettings.description,
+        timezone: establishmentSettings.timezone,
+        currency: establishmentSettings.currency,
+        language: establishmentSettings.language,
+        logo: establishmentSettings.logo,
+      })
+
+      if (error) {
+        console.error('Error al actualizar establecimiento:', error)
+        alert('Error al actualizar establecimiento: ' + error.message)
+      } else {
+        alert('Establecimiento actualizado correctamente')
+      }
+    } catch (error) {
+      console.error('Error al actualizar establecimiento:', error)
+      alert('Error al actualizar establecimiento')
+    }
   }
 
   const handleSaveNotifications = () => {
@@ -123,8 +245,17 @@ export default function SettingsPage() {
           </header>
 
           <main className="flex-1 p-6">
-            <Tabs defaultValue="establishment" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-5">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-64">
+                <p className="text-muted-foreground">Cargando configuración...</p>
+              </div>
+            ) : (
+              <Tabs defaultValue="establishment" className="space-y-6">
+              <TabsList className="grid w-full grid-cols-6">
+                <TabsTrigger value="profile" className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Profile
+                </TabsTrigger>
                 <TabsTrigger value="establishment" className="flex items-center gap-2">
                   <Building className="w-4 h-4" />
                   Establishment
@@ -146,6 +277,58 @@ export default function SettingsPage() {
                   Billing
                 </TabsTrigger>
               </TabsList>
+
+              {/* Profile Settings */}
+              <TabsContent value="profile" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Profile Information</CardTitle>
+                    <CardDescription>Update your personal information</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="firstName">First Name</Label>
+                        <Input
+                          id="firstName"
+                          value={profileSettings.firstName}
+                          onChange={(e) => setProfileSettings({ ...profileSettings, firstName: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lastName">Last Name</Label>
+                        <Input
+                          id="lastName"
+                          value={profileSettings.lastName}
+                          onChange={(e) => setProfileSettings({ ...profileSettings, lastName: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={profileSettings.email}
+                        onChange={(e) => setProfileSettings({ ...profileSettings, email: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={profileSettings.phone}
+                        onChange={(e) => setProfileSettings({ ...profileSettings, phone: e.target.value })}
+                      />
+                    </div>
+                    <Button onClick={handleSaveProfile}>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Profile
+                    </Button>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
               {/* Establishment Settings */}
               <TabsContent value="establishment" className="space-y-6">
@@ -899,6 +1082,7 @@ export default function SettingsPage() {
                 </Card>
               </TabsContent>
             </Tabs>
+            )}
           </main>
         </div>
       </div>

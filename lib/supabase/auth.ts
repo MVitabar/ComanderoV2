@@ -243,7 +243,7 @@ export class AuthService {
 
       return {
         user: authData.user,
-        establishment: { id: result.establishmentId },
+        establishment: { id: result.establishment_id },
         session: authData.session
       };
     } catch (error) {
@@ -339,20 +339,22 @@ export class AuthService {
   }
 
   static async getCurrentUser(): Promise<AuthResponse> {
-    const { data, error } = await supabase.auth.getUser();
+    try {
+      const { data, error } = await supabase.auth.getUser();
 
-    // 403 es normal cuando no hay sesión - no es un error real
-    if (error) {
-      if (error.status === 403) {
+      // 403 es normal cuando no hay sesión - no es un error real
+      // Auth session missing también es normal cuando no hay sesión
+      if (error) {
+        if (error.status === 403 || error.message.includes('Auth session missing')) {
+          return { data: null, error: null };
+        }
+        console.error('Error al obtener usuario:', error);
+        return { data: null, error };
+      }
+
+      if (!data.user) {
         return { data: null, error: null };
       }
-      console.error('Error al obtener usuario:', error);
-      return { data: null, error };
-    }
-
-    if (!data.user) {
-      return { data: null, error: null };
-    }
   
     // Obtener el perfil del usuario
     const { data: profile, error: profileError } = await supabase
@@ -372,13 +374,17 @@ export class AuthService {
       email: data.user.email || '',
     };
   
-    return { 
-      data: { 
+    return {
+      data: {
         user: userData as User,
-        session: null 
-      }, 
-      error: null 
+        session: null
+      },
+      error: null
     };
+    } catch (error) {
+      console.error('Error en getCurrentUser:', error);
+      return { data: null, error: error instanceof Error ? error : new Error('Error desconocido') };
+    }
   }
 
   static async getProfile(userId: string) {
@@ -391,11 +397,11 @@ export class AuthService {
     return { data, error };
   }
 
-  static async getEstablishment(establishmentId: string) {
+  static async getEstablishment(establishment_id: string) {
     const { data, error } = await supabase
       .from('establishments')
       .select('*')
-      .eq('id', establishmentId)
+      .eq('id', establishment_id)
       .single();
 
     return { data, error };
@@ -405,6 +411,22 @@ export class AuthService {
     const { data, error } = await supabase
       .from('profiles')
       .update(updates)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    return { data, error };
+  }
+
+  // Actualizar perfil del usuario actual con datos reales
+  static async fixUserProfile(userId: string, firstName: string, lastName: string, email: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+      })
       .eq('id', userId)
       .select()
       .single();

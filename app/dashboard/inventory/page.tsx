@@ -20,19 +20,11 @@ import { Plus, Search, AlertTriangle, Edit, Trash2, Download, Upload } from "luc
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { InventoryStats } from "@/components/inventory/inventory-stats"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function InventoryPage() {
-  const [inventoryItems, setInventoryItems] = useState<Array<{
-    id: string;
-    name: string;
-    category: string;
-    currentStock: number;
-    minimumStock: number;
-    unit: string;
-    price: number;
-    supplier: string;
-    lastUpdated: string;
-  }>>([]);
+  const { user } = useAuth()
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -40,25 +32,34 @@ export default function InventoryPage() {
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [currentItem, setCurrentItem] = useState<any>(null);
+  const [newItem, setNewItem] = useState({
+    name: "",
+    category: "",
+    current_stock: 0,
+    minimum_stock: 0,
+    unit: "",
+    price: 0,
+    supplier: "",
+  });
   const [categories, setCategories] = useState<string[]>([]);
   const [filterCategory, setFilterCategory] = useState("all")
   const [filterStatus, setFilterStatus] = useState("all")
 
   useEffect(() => {
     const fetchInventoryData = async () => {
+      if (!user?.establishment_id) return
+
       setIsLoading(true);
       try {
-        // Aquí irían las llamadas a la API para obtener los datos
-        // const [itemsResponse, categoriesResponse] = await Promise.all([
-        //   fetch('/api/inventory/items'),
-        //   fetch('/api/inventory/categories')
-        // ]);
-        // 
-        // const itemsData = await itemsResponse.json();
-        // const categoriesData = await categoriesResponse.json();
-        // 
-        // setInventoryItems(itemsData);
-        // setCategories(categoriesData);
+        const { InventoryService } = await import('@/lib/supabase/inventory')
+
+        // Cargar items de inventario
+        const itemsData = await InventoryService.getInventoryItems(user.establishment_id)
+        setInventoryItems(itemsData || [])
+
+        // Cargar categorías
+        const categoriesData = await InventoryService.getCategories(user.establishment_id)
+        setCategories(categoriesData?.map((c: any) => c.name) || [])
       } catch (error) {
         console.error('Error loading inventory data:', error);
       } finally {
@@ -67,7 +68,7 @@ export default function InventoryPage() {
     };
 
     fetchInventoryData();
-  }, []);
+  }, [user?.establishment_id]);
 
   if (isLoading) {
     return (
@@ -119,39 +120,39 @@ export default function InventoryPage() {
   })
 
   const handleAddItem = () => {
-    const status = calculateStatus(newItem.currentStock, newItem.minimumStock)
+    const status = calculateStatus(newItem.current_stock, newItem.minimum_stock)
     const item = {
       id: inventoryItems.length + 1,
       ...newItem,
       status,
-      lastUpdated: new Date().toISOString(),
+      last_updated: new Date().toISOString(),
     }
     setInventoryItems([...inventoryItems, item])
     setNewItem({
       name: "",
       category: "",
-      currentStock: 0,
-      minimumStock: 0,
+      current_stock: 0,
+      minimum_stock: 0,
       unit: "",
-      cost: 0,
+      price: 0,
       supplier: "",
     })
     setShowAddItemDialog(false)
   }
 
   const handleEditItem = () => {
-    if (!selectedItem) return
+    if (!currentItem) return
 
-    const status = calculateStatus(selectedItem.currentStock, selectedItem.minimumStock)
+    const status = calculateStatus(currentItem.current_stock, currentItem.minimum_stock)
     const updatedItems = inventoryItems.map((item) =>
-      item.id === selectedItem.id ? { ...selectedItem, status, lastUpdated: new Date().toISOString() } : item,
+      item.id === currentItem.id ? { ...currentItem, status, last_updated: new Date().toISOString() } : item,
     )
     setInventoryItems(updatedItems)
     setShowEditDialog(false)
-    setSelectedItem(null)
+    setCurrentItem(null)
   }
 
-  const handleDeleteItem = (itemId: number) => {
+  const handleDeleteItem = (itemId: string) => {
     setInventoryItems(inventoryItems.filter((item) => item.id !== itemId))
   }
 
@@ -276,16 +277,16 @@ export default function InventoryPage() {
                               <Badge className={getStatusColor(item.status)}>{getStatusText(item.status)}</Badge>
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              Supplier: {item.supplier} • Last updated: {formatDate(item.lastUpdated)}
+                              Supplier: {item.supplier} • Last updated: {formatDate(item.last_updated)}
                             </div>
                           </div>
                           <div className="flex items-center gap-6">
                             <div className="text-center">
                               <div className="text-lg font-semibold">
-                                {item.currentStock} {item.unit}
+                                {item.current_stock} {item.unit}
                               </div>
                               <div className="text-xs text-muted-foreground">
-                                Min: {item.minimumStock} {item.unit}
+                                Min: {item.minimum_stock} {item.unit}
                               </div>
                             </div>
                             <div className="text-center">
@@ -336,16 +337,16 @@ export default function InventoryPage() {
                             <div className="space-y-1">
                               <h3 className="font-medium">{item.name}</h3>
                               <p className="text-sm text-muted-foreground">
-                                Current: {item.currentStock} {item.unit} • Minimum: {item.minimumStock} {item.unit}
+                                Current: {item.current_stock} {item.unit} • Minimum: {item.minimum_stock} {item.unit}
                               </p>
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="text-right">
                                 <div className="text-lg font-semibold text-red-600">
-                                  {item.currentStock} {item.unit}
+                                  {item.current_stock} {item.unit}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                  Need {item.minimumStock - item.currentStock} more
+                                  Need {item.minimum_stock - item.current_stock} more
                                 </div>
                               </div>
                               <Button size="sm">Reorder</Button>
@@ -368,7 +369,7 @@ export default function InventoryPage() {
                         {categories.map((category) => {
                           const categoryItems = inventoryItems.filter((item) => item.category === category)
                           const categoryValue = categoryItems.reduce(
-                            (sum, item) => sum + item.currentStock * item.price,
+                            (sum, item) => sum + item.current_stock * item.price,
                             0,
                           )
                           return (
@@ -394,7 +395,7 @@ export default function InventoryPage() {
                         {Array.from(new Set(inventoryItems.map((item) => item.supplier))).map((supplier) => {
                           const supplierItems = inventoryItems.filter((item) => item.supplier === supplier)
                           const supplierValue = supplierItems.reduce(
-                            (sum, item) => sum + item.currentStock * item.price,
+                            (sum, item) => sum + item.current_stock * item.price,
                             0,
                           )
                           return (
@@ -454,22 +455,22 @@ export default function InventoryPage() {
 
                   <div className="grid grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="currentStock">Current Stock</Label>
+                      <Label htmlFor="current_stock">Current Stock</Label>
                       <Input
-                        id="currentStock"
+                        id="current_stock"
                         type="number"
-                        value={newItem.currentStock}
-                        onChange={(e) => setNewItem({ ...newItem, currentStock: Number(e.target.value) })}
+                        value={newItem.current_stock}
+                        onChange={(e) => setNewItem({ ...newItem, current_stock: Number(e.target.value) })}
                         placeholder="0"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="minimumStock">Minimum Stock</Label>
+                      <Label htmlFor="minimum_stock">Minimum Stock</Label>
                       <Input
-                        id="minimumStock"
+                        id="minimum_stock"
                         type="number"
-                        value={newItem.minimumStock}
-                        onChange={(e) => setNewItem({ ...newItem, minimumStock: Number(e.target.value) })}
+                        value={newItem.minimum_stock}
+                        onChange={(e) => setNewItem({ ...newItem, minimum_stock: Number(e.target.value) })}
                         placeholder="0"
                       />
                     </div>
@@ -563,8 +564,8 @@ export default function InventoryPage() {
                         <Input
                           id="editCurrentStock"
                           type="number"
-                          value={currentItem.currentStock}
-                          onChange={(e) => setCurrentItem({ ...currentItem, currentStock: Number(e.target.value) })}
+                          value={currentItem.current_stock}
+                          onChange={(e) => setCurrentItem({ ...currentItem, current_stock: Number(e.target.value) })}
                         />
                       </div>
                       <div className="space-y-2">
@@ -572,8 +573,8 @@ export default function InventoryPage() {
                         <Input
                           id="editMinimumStock"
                           type="number"
-                          value={currentItem.minimumStock}
-                          onChange={(e) => setCurrentItem({ ...currentItem, minimumStock: Number(e.target.value) })}
+                          value={currentItem.minimum_stock}
+                          onChange={(e) => setCurrentItem({ ...currentItem, minimum_stock: Number(e.target.value) })}
                         />
                       </div>
                       <div className="space-y-2">

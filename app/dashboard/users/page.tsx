@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -22,91 +22,12 @@ import { Search, UserPlus, Edit, Trash2, Mail, Phone } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { UserStats } from "@/components/users/user-stats"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function UsersPage() {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      firstName: "Juan",
-      lastName: "Pérez",
-      email: "juan.perez@restaurant.com",
-      phone: "+1 (555) 123-4567",
-      role: "waiter",
-      status: "active",
-      avatar: "/placeholder.svg?height=40&width=40",
-      lastLogin: "2024-01-15T10:30:00",
-      createdAt: "2024-01-01T09:00:00",
-      permissions: {
-        tables: true,
-        orders: true,
-        kitchen: false,
-        inventory: false,
-        reports: false,
-        users: false,
-      },
-    },
-    {
-      id: 2,
-      firstName: "María",
-      lastName: "García",
-      email: "maria.garcia@restaurant.com",
-      phone: "+1 (555) 234-5678",
-      role: "manager",
-      status: "active",
-      avatar: "/placeholder.svg?height=40&width=40",
-      lastLogin: "2024-01-15T11:45:00",
-      createdAt: "2024-01-01T09:00:00",
-      permissions: {
-        tables: true,
-        orders: true,
-        kitchen: true,
-        inventory: true,
-        reports: true,
-        users: true,
-      },
-    },
-    {
-      id: 3,
-      firstName: "Carlos",
-      lastName: "López",
-      email: "carlos.lopez@restaurant.com",
-      phone: "+1 (555) 345-6789",
-      role: "chef",
-      status: "active",
-      avatar: "/placeholder.svg?height=40&width=40",
-      lastLogin: "2024-01-15T08:15:00",
-      createdAt: "2024-01-05T14:30:00",
-      permissions: {
-        tables: false,
-        orders: true,
-        kitchen: true,
-        inventory: true,
-        reports: false,
-        users: false,
-      },
-    },
-    {
-      id: 4,
-      firstName: "Ana",
-      lastName: "Martín",
-      email: "ana.martin@restaurant.com",
-      phone: "+1 (555) 456-7890",
-      role: "waiter",
-      status: "inactive",
-      avatar: "/placeholder.svg?height=40&width=40",
-      lastLogin: "2024-01-10T16:20:00",
-      createdAt: "2024-01-08T11:15:00",
-      permissions: {
-        tables: true,
-        orders: true,
-        kitchen: false,
-        inventory: false,
-        reports: false,
-        users: false,
-      },
-    },
-  ])
-
+  const { user } = useAuth()
+  const [users, setUsers] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [filterRole, setFilterRole] = useState("all")
   const [filterStatus, setFilterStatus] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
@@ -128,6 +49,48 @@ export default function UsersPage() {
       users: false,
     },
   })
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!user?.establishment_id) return
+
+      setIsLoading(true)
+      try {
+        const { UserService } = await import('@/lib/supabase/users')
+        const usersData = await UserService.getUsers(user.establishment_id)
+        setUsers(usersData || [])
+      } catch (error) {
+        console.error('Error loading users:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchUsers()
+  }, [user?.establishment_id])
+
+  if (isLoading) {
+    return (
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full">
+          <AppSidebar />
+          <div className="flex-1">
+            <header className="flex h-16 items-center gap-4 border-b bg-background px-6">
+              <SidebarTrigger />
+              <div className="flex-1">
+                <h1 className="text-2xl font-semibold">Users Management</h1>
+              </div>
+            </header>
+            <main className="flex-1 p-6">
+              <div className="animate-pulse space-y-6">
+                <div className="h-96 bg-gray-200 rounded-lg" />
+              </div>
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+    )
+  }
 
   const roles = [
     { value: "owner", label: "Owner", color: "bg-purple-100 text-purple-800" },

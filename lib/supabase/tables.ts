@@ -2,15 +2,15 @@ import { supabase } from "./client"
 import type { Table, TableWithDetails } from "@/types/table"
 
 export class TableService {
-  static async getTables(establishmentId: string): Promise<TableWithDetails[]> {
+  static async getTables(establishment_id: string): Promise<TableWithDetails[]> {
     const { data, error } = await supabase
       .from("tables")
       .select(`
         *,
-        waiter:users(id, firstName, lastName),
+        waiter:profiles(id, first_name, last_name),
         orders:orders(*)
       `)
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
 
     if (error) throw error
     return data as TableWithDetails[]
@@ -21,7 +21,7 @@ export class TableService {
       .from("tables")
       .select(`
         *,
-        waiter:users(id, firstName, lastName),
+        waiter:profiles(id, first_name, last_name),
         orders:orders(*)
       `)
       .eq("id", id)
@@ -31,7 +31,7 @@ export class TableService {
     return data as TableWithDetails
   }
 
-  static async createTable(table: Omit<Table, "id" | "createdAt" | "updatedAt">) {
+  static async createTable(table: Omit<Table, "id" | "created_at" | "updated_at">) {
     const { data, error } = await supabase.from("tables").insert(table).select().single()
 
     if (error) throw error

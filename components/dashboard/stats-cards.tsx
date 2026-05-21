@@ -5,7 +5,7 @@ interface StatCardProps {
   title: string
   value: string
   change: string
-  icon: LucideIcon
+  icon: LucideIcon | React.ComponentType<{ className?: string }>
   trend: "up" | "down" | "neutral"
 }
 

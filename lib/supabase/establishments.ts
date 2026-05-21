@@ -3,7 +3,7 @@ import type { Establishment } from "@/types/establishment"
 
 export class EstablishmentService {
   static async getEstablishments(userId: string) {
-    const { data, error } = await supabase.from("establishments").select("*").eq("ownerId", userId)
+    const { data, error } = await supabase.from("establishments").select("*").eq("owner_id", userId)
 
     if (error) throw error
     return data
@@ -29,24 +29,24 @@ export class EstablishmentService {
     if (error) throw error
   }
 
-  static async getEstablishmentStats(establishmentId: string) {
+  static async getEstablishmentStats(establishment_id: string) {
     // Get tables count
     const { count: tablesCount } = await supabase
       .from("tables")
       .select("*", { count: "exact", head: true })
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
 
     // Get staff count
     const { count: staffCount } = await supabase
-      .from("users")
+      .from("profiles")
       .select("*", { count: "exact", head: true })
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
 
     // Get monthly revenue (simplified - would need proper date filtering)
     const { data: orders } = await supabase
       .from("orders")
       .select("total")
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
       .eq("status", "paid")
 
     const monthlyRevenue = orders?.reduce((sum, order) => sum + order.total, 0) || 0

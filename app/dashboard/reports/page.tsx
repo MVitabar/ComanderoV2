@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -13,61 +13,75 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { format } from "date-fns"
 import { KeyMetrics } from "@/components/reports/key-metrics"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function ReportsPage() {
-  const [dateRange, setDateRange] = useState("today")
+  const { user } = useAuth()
+  const [dateRange, setDateRange] = useState<"today" | "week" | "month">("today")
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [showCalendar, setShowCalendar] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [salesData, setSalesData] = useState<any>(null)
+  const [topItems, setTopItems] = useState<any[]>([])
+  const [hourlyData, setHourlyData] = useState<any[]>([])
+  const [staffPerformance, setStaffPerformance] = useState<any[]>([])
+  const [tableUtilization, setTableUtilization] = useState<any[]>([])
 
-  // Mock data for reports
-  const salesData = {
-    today: { revenue: 2847, orders: 23, avgOrder: 123.78, growth: 12.5 },
-    week: { revenue: 18420, orders: 156, avgOrder: 118.08, growth: 8.3 },
-    month: { revenue: 78650, orders: 642, avgOrder: 122.51, growth: 15.2 },
+  useEffect(() => {
+    const fetchReports = async () => {
+      if (!user?.establishment_id) return
+
+      setIsLoading(true)
+      try {
+        const { ReportsService } = await import('@/lib/supabase/reports')
+
+        // Cargar reporte de ventas
+        const salesReport = await ReportsService.getSalesReport(user.establishment_id, dateRange)
+        setSalesData(salesReport)
+        setTopItems(salesReport.topItems || [])
+        setHourlyData(salesReport.hourlyData || [])
+
+        // Cargar rendimiento del staff
+        const staffData = await ReportsService.getStaffPerformance(user.establishment_id)
+        setStaffPerformance(staffData || [])
+
+        // Cargar utilización de mesas
+        const tableData = await ReportsService.getTableUtilization(user.establishment_id)
+        setTableUtilization(tableData || [])
+      } catch (error) {
+        console.error('Error loading reports:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchReports()
+  }, [user?.establishment_id, dateRange])
+
+  if (isLoading) {
+    return (
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full">
+          <AppSidebar />
+          <div className="flex-1">
+            <header className="flex h-16 items-center gap-4 border-b bg-background px-6">
+              <SidebarTrigger />
+              <div className="flex-1">
+                <h1 className="text-2xl font-semibold">Reports & Analytics</h1>
+              </div>
+            </header>
+            <main className="flex-1 p-6">
+              <div className="animate-pulse space-y-6">
+                <div className="h-96 bg-gray-200 rounded-lg" />
+              </div>
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+    )
   }
 
-  const topItems = [
-    { name: "Hamburguesa Clásica", quantity: 45, revenue: 562.5, percentage: 18.2 },
-    { name: "Pizza Margherita", quantity: 32, revenue: 480.0, percentage: 15.5 },
-    { name: "Ensalada César", quantity: 28, revenue: 238.0, percentage: 11.4 },
-    { name: "Papas Fritas", quantity: 67, revenue: 335.0, percentage: 10.8 },
-    { name: "Cerveza Corona", quantity: 89, revenue: 400.5, percentage: 9.1 },
-  ]
-
-  const hourlyData = [
-    { hour: "08:00", orders: 2, revenue: 45 },
-    { hour: "09:00", orders: 5, revenue: 125 },
-    { hour: "10:00", orders: 8, revenue: 180 },
-    { hour: "11:00", orders: 12, revenue: 285 },
-    { hour: "12:00", orders: 18, revenue: 420 },
-    { hour: "13:00", orders: 25, revenue: 580 },
-    { hour: "14:00", orders: 22, revenue: 510 },
-    { hour: "15:00", orders: 15, revenue: 340 },
-    { hour: "16:00", orders: 10, revenue: 230 },
-    { hour: "17:00", orders: 8, revenue: 185 },
-    { hour: "18:00", orders: 20, revenue: 465 },
-    { hour: "19:00", orders: 28, revenue: 650 },
-    { hour: "20:00", orders: 32, revenue: 745 },
-    { hour: "21:00", orders: 25, revenue: 580 },
-    { hour: "22:00", orders: 15, revenue: 350 },
-  ]
-
-  const staffPerformance = [
-    { name: "Juan Pérez", orders: 28, revenue: 1250, avgTime: "12 min", rating: 4.8 },
-    { name: "María García", orders: 32, revenue: 1480, avgTime: "10 min", rating: 4.9 },
-    { name: "Carlos López", orders: 25, revenue: 1120, avgTime: "15 min", rating: 4.6 },
-    { name: "Ana Martín", orders: 22, revenue: 980, avgTime: "13 min", rating: 4.7 },
-  ]
-
-  const tableUtilization = [
-    { table: "Table 1", occupancy: 85, revenue: 320, turns: 6 },
-    { table: "Table 2", occupancy: 92, revenue: 280, turns: 8 },
-    { table: "Table 3", occupancy: 78, revenue: 450, turns: 5 },
-    { table: "Table 4", occupancy: 88, revenue: 380, turns: 7 },
-    { table: "Table 5", occupancy: 95, revenue: 520, turns: 9 },
-  ]
-
-  const currentData = salesData[dateRange] || salesData.today
+  const currentData = salesData || { revenue: 0, orders: 0, avgOrderValue: 0, growth: 0 }
 
   const getMaxRevenue = () => {
     return Math.max(...hourlyData.map((item) => item.revenue))

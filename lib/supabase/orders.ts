@@ -2,17 +2,17 @@ import { supabase } from "./client"
 import type { Order, OrderWithDetails, OrderItem } from "@/types/order"
 
 export class OrderService {
-  static async getOrders(establishmentId: string): Promise<OrderWithDetails[]> {
+  static async getOrders(establishment_id: string): Promise<OrderWithDetails[]> {
     const { data, error } = await supabase
       .from("orders")
       .select(`
         *,
         table:tables(number),
-        waiter:users(firstName, lastName),
+        waiter:profiles(first_name, last_name),
         items:order_items(*)
       `)
-      .eq("establishmentId", establishmentId)
-      .order("createdAt", { ascending: false })
+      .eq("establishment_id", establishment_id)
+      .order("created_at", { ascending: false })
 
     if (error) throw error
     return data as OrderWithDetails[]
@@ -24,7 +24,7 @@ export class OrderService {
       .select(`
         *,
         table:tables(number),
-        waiter:users(firstName, lastName),
+        waiter:profiles(first_name, last_name),
         items:order_items(*)
       `)
       .eq("id", id)
@@ -34,7 +34,7 @@ export class OrderService {
     return data as OrderWithDetails
   }
 
-  static async createOrder(order: Omit<Order, "id" | "createdAt" | "updatedAt">, items: Omit<OrderItem, "id">[]) {
+  static async createOrder(order: Omit<Order, "id" | "created_at" | "updated_at">, items: Omit<OrderItem, "id">[]) {
     const { data: orderData, error: orderError } = await supabase.from("orders").insert(order).select().single()
 
     if (orderError) throw orderError
@@ -42,7 +42,7 @@ export class OrderService {
     // Insert order items
     const orderItems = items.map((item) => ({
       ...item,
-      orderId: orderData.id,
+      order_id: orderData.id,
     }))
 
     const { data: itemsData, error: itemsError } = await supabase.from("order_items").insert(orderItems).select()
@@ -63,7 +63,7 @@ export class OrderService {
     const updates: Partial<Order> = { status }
 
     if (status === "served") {
-      updates.completedAt = new Date().toISOString()
+      updates.completed_at = new Date().toISOString()
     }
 
     return this.updateOrder(id, updates)
@@ -71,7 +71,7 @@ export class OrderService {
 
   static async deleteOrder(id: string) {
     // Delete order items first
-    await supabase.from("order_items").delete().eq("orderId", id)
+    await supabase.from("order_items").delete().eq("order_id", id)
 
     // Delete order
     const { error } = await supabase.from("orders").delete().eq("id", id)
@@ -79,24 +79,41 @@ export class OrderService {
     if (error) throw error
   }
 
-  static async getOrdersByTable(tableId: string) {
-    const { data, error } = await supabase.from("orders").select("*").eq("tableId", tableId).neq("status", "paid")
+  static async getOrdersByTable(table_id: string) {
+    const { data, error } = await supabase.from("orders").select("*").eq("table_id", table_id).neq("status", "paid")
 
     if (error) throw error
     return data
   }
 
-  static async getOrdersByStatus(establishmentId: string, status: Order["status"]) {
+  static async getOrdersByStatus(establishment_id: string, status: Order["status"]) {
     const { data, error } = await supabase
       .from("orders")
       .select(`
         *,
         table:tables(number),
-        waiter:users(firstName, lastName),
+        waiter:profiles(first_name, last_name),
         items:order_items(*)
       `)
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
       .eq("status", status)
+
+    if (error) throw error
+    return data as OrderWithDetails[]
+  }
+
+  static async getRecentOrders(establishment_id: string, limit: number = 10): Promise<OrderWithDetails[]> {
+    const { data, error } = await supabase
+      .from("orders")
+      .select(`
+        *,
+        table:tables(number),
+        waiter:profiles(first_name, last_name),
+        items:order_items(*)
+      `)
+      .eq("establishment_id", establishment_id)
+      .order("created_at", { ascending: false })
+      .limit(limit)
 
     if (error) throw error
     return data as OrderWithDetails[]

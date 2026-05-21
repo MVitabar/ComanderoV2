@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -8,78 +8,41 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Clock, ChefHat, CheckCircle, AlertTriangle, Coffee } from "lucide-react"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function KitchenPage() {
-  const [kitchenOrders, setKitchenOrders] = useState([
-    {
-      id: "CMD-001",
-      table: 5,
-      waiter: "Juan Pérez",
-      status: "preparing",
-      priority: "normal",
-      items: [
-        { name: "Hamburguesa Clásica", quantity: 2, notes: "Sin cebolla", station: "grill" },
-        { name: "Papas Fritas", quantity: 2, notes: "", station: "fryer" },
-      ],
-      createdAt: "2024-01-15T14:30:00",
-      estimatedTime: 15,
-      timeElapsed: 8,
-    },
-    {
-      id: "CMD-004",
-      table: 8,
-      waiter: "Ana Martín",
-      status: "pending",
-      priority: "high",
-      items: [{ name: "Sopa del Día", quantity: 1, notes: "", station: "stove" }],
-      createdAt: "2024-01-15T14:45:00",
-      estimatedTime: 8,
-      timeElapsed: 2,
-    },
-    {
-      id: "CMD-005",
-      table: 11,
-      waiter: "Luis Rodríguez",
-      status: "preparing",
-      priority: "normal",
-      items: [
-        { name: "Pizza Margherita", quantity: 1, notes: "Extra queso", station: "oven" },
-        { name: "Ensalada César", quantity: 1, notes: "Aderezo aparte", station: "cold" },
-      ],
-      createdAt: "2024-01-15T14:25:00",
-      estimatedTime: 20,
-      timeElapsed: 12,
-    },
-  ])
+  const { user } = useAuth()
+  const [kitchenOrders, setKitchenOrders] = useState<any[]>([])
+  const [barOrders, setBarOrders] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const [barOrders, setBarOrders] = useState([
-    {
-      id: "CMD-002",
-      table: 12,
-      waiter: "María García",
-      status: "preparing",
-      items: [
-        { name: "Mojito", quantity: 2, notes: "Poco hielo" },
-        { name: "Cerveza Corona", quantity: 1, notes: "" },
-      ],
-      createdAt: "2024-01-15T14:15:00",
-      estimatedTime: 5,
-      timeElapsed: 3,
-    },
-    {
-      id: "CMD-003",
-      table: 3,
-      waiter: "Carlos López",
-      status: "ready",
-      items: [
-        { name: "Café Americano", quantity: 2, notes: "" },
-        { name: "Cappuccino", quantity: 1, notes: "Con canela" },
-      ],
-      createdAt: "2024-01-15T14:40:00",
-      estimatedTime: 3,
-      timeElapsed: 5,
-    },
-  ])
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (!user?.establishment_id) return
+
+      setIsLoading(true)
+      try {
+        const { OrderService } = await import('@/lib/supabase/orders')
+
+        // Obtener órdenes pendientes y en preparación
+        const orders = await OrderService.getOrdersByStatus(user.establishment_id, 'pending')
+        const preparingOrders = await OrderService.getOrdersByStatus(user.establishment_id, 'preparing')
+        const readyOrders = await OrderService.getOrdersByStatus(user.establishment_id, 'ready')
+
+        // Separar por tipo (kitchen vs bar) - simplificado
+        const allOrders = [...orders, ...preparingOrders, ...readyOrders]
+
+        setKitchenOrders(allOrders.slice(0, 10)) // Primeras 10 para kitchen
+        setBarOrders(allOrders.slice(10, 20)) // Siguientes 10 para bar
+      } catch (error) {
+        console.error('Error loading kitchen orders:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchOrders()
+  }, [user?.establishment_id])
 
   const updateKitchenOrderStatus = (orderId: string, newStatus: string) => {
     setKitchenOrders((orders) =>
@@ -89,6 +52,29 @@ export default function KitchenPage() {
 
   const updateBarOrderStatus = (orderId: string, newStatus: string) => {
     setBarOrders((orders) => orders.map((order) => (order.id === orderId ? { ...order, status: newStatus } : order)))
+  }
+
+  if (isLoading) {
+    return (
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full">
+          <AppSidebar />
+          <div className="flex-1">
+            <header className="flex h-16 items-center gap-4 border-b bg-background px-6">
+              <SidebarTrigger />
+              <div className="flex-1">
+                <h1 className="text-2xl font-semibold">Kitchen Display</h1>
+              </div>
+            </header>
+            <main className="flex-1 p-6">
+              <div className="animate-pulse space-y-6">
+                <div className="h-96 bg-gray-200 rounded-lg" />
+              </div>
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+    )
   }
 
   const getPriorityColor = (priority: string) => {

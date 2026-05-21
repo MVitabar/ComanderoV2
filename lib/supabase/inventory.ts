@@ -2,11 +2,11 @@ import { supabase } from "./client"
 import type { InventoryItem, StockMovement } from "@/types/inventory"
 
 export class InventoryService {
-  static async getInventoryItems(establishmentId: string) {
+  static async getInventoryItems(establishment_id: string) {
     const { data, error } = await supabase
       .from("inventory_items")
       .select("*")
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
       .order("name")
 
     if (error) throw error
@@ -20,7 +20,7 @@ export class InventoryService {
     return data
   }
 
-  static async createInventoryItem(item: Omit<InventoryItem, "id" | "createdAt" | "lastUpdated">) {
+  static async createInventoryItem(item: Omit<InventoryItem, "id" | "created_at" | "last_updated">) {
     const { data, error } = await supabase
       .from("inventory_items")
       .insert({
@@ -37,7 +37,7 @@ export class InventoryService {
   static async updateInventoryItem(id: string, updates: Partial<InventoryItem>) {
     const updatesWithStatus = {
       ...updates,
-      lastUpdated: new Date().toISOString(),
+      last_updated: new Date().toISOString(),
     }
 
     if (updates.currentStock !== undefined || updates.minimumStock !== undefined) {
@@ -71,35 +71,35 @@ export class InventoryService {
     if (error) throw error
   }
 
-  static async getLowStockItems(establishmentId: string) {
+  static async getLowStockItems(establishment_id: string) {
     const { data, error } = await supabase
       .from("inventory_items")
       .select("*")
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
       .eq("status", "low")
 
     if (error) throw error
     return data
   }
 
-  static async getCategories(establishmentId: string) {
+  static async getCategories(establishment_id: string) {
     const { data, error } = await supabase
       .from("inventory_categories")
       .select("*")
-      .eq("establishmentId", establishmentId)
+      .eq("establishment_id", establishment_id)
 
     if (error) throw error
     return data
   }
 
-  static async getSuppliers(establishmentId: string) {
-    const { data, error } = await supabase.from("suppliers").select("*").eq("establishmentId", establishmentId)
+  static async getSuppliers(establishment_id: string) {
+    const { data, error } = await supabase.from("suppliers").select("*").eq("establishment_id", establishment_id)
 
     if (error) throw error
     return data
   }
 
-  static async addStockMovement(movement: Omit<StockMovement, "id" | "createdAt">) {
+  static async addStockMovement(movement: Omit<StockMovement, "id" | "created_at">) {
     const { data, error } = await supabase.from("stock_movements").insert(movement).select().single()
 
     if (error) throw error
@@ -107,12 +107,12 @@ export class InventoryService {
     // Update item stock
     if (movement.type === "in") {
       await supabase.rpc("increment_stock", {
-        item_id: movement.itemId,
+        item_id: movement.item_id,
         amount: movement.quantity,
       })
     } else if (movement.type === "out") {
       await supabase.rpc("decrement_stock", {
-        item_id: movement.itemId,
+        item_id: movement.item_id,
         amount: movement.quantity,
       })
     }
