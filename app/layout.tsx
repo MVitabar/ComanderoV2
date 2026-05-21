@@ -4,6 +4,7 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { LocaleProvider } from "@/hooks/use-locale"
 import { IntegrationsProvider } from "@/hooks/use-integrations"
+import { AuthProvider } from "@/hooks/use-auth"
 import ToastProvider from "@/components/notifications/ToastProvider"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -29,9 +30,11 @@ export default function RootLayout({
         >
           <IntegrationsProvider>
             <LocaleProvider>
-              <ToastProvider>
-                {children}
-              </ToastProvider>
+              <AuthProvider>
+                <ToastProvider>
+                  {children}
+                </ToastProvider>
+              </AuthProvider>
             </LocaleProvider>
           </IntegrationsProvider>
         </ThemeProvider>

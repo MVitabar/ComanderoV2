@@ -48,8 +48,15 @@ const mapAuthUserToAppUser = (authUser: any): User | null => {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted) return
+
     const checkUser = async () => {
       try {
         const { data, error } = await AuthService.getCurrentUser()
@@ -64,7 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     checkUser()
-  }, [])
+  }, [mounted])
 
   const signIn = async (email: string, password: string) => {
     const result = await AuthService.signIn({ email, password })
@@ -102,11 +109,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   return (
-    <>
-      <AuthContext.Provider value={value}>
-        {children}
-      </AuthContext.Provider>
-    </>
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
   )
 }
 

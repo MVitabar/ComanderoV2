@@ -12,22 +12,22 @@ import { useAuth } from "@/hooks/use-auth"
 import type { TableWithDetails } from "@/types/table"
 
 export default function TablesPage() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [tables, setTables] = useState<TableWithDetails[]>([])
   const [selectedTable, setSelectedTable] = useState<TableWithDetails | null>(null)
   const [showNewOrderDialog, setShowNewOrderDialog] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (user?.establishmentId) {
+    if (user?.establishment_id) {
       loadTables()
     }
-  }, [user?.establishmentId])
+  }, [user?.establishment_id])
 
   const loadTables = async () => {
     try {
       setLoading(true)
-      const data = await TableService.getTables(user!.establishmentId)
+      const data = await TableService.getTables(user!.establishment_id)
       setTables(data)
     } catch (error) {
       console.error("Error loading tables:", error)
@@ -57,7 +57,7 @@ export default function TablesPage() {
     }
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <SidebarProvider>
         <div className="flex min-h-screen w-full">

@@ -6,21 +6,26 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-
-interface Table {
-  id: number
-  number: number
-  capacity: number
-}
+import type { TableWithDetails } from "@/types/table"
 
 interface NewOrderDialogProps {
-  table: Table | null
+  table: TableWithDetails | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  onOrderCreated?: () => Promise<void>
 }
 
-export function NewOrderDialog({ table, open, onOpenChange }: NewOrderDialogProps) {
+export function NewOrderDialog({ table, open, onOpenChange, onOrderCreated }: NewOrderDialogProps) {
   if (!table) return null
+
+  const handleCreateOrder = async () => {
+    // Aquí iría la lógica para crear la orden
+    // Por ahora, solo llamamos al callback si existe
+    if (onOrderCreated) {
+      await onOrderCreated()
+    }
+    onOpenChange(false)
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -60,7 +65,7 @@ export function NewOrderDialog({ table, open, onOpenChange }: NewOrderDialogProp
             <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button className="flex-1">Crear Comanda</Button>
+            <Button className="flex-1" onClick={handleCreateOrder}>Crear Comanda</Button>
           </div>
         </div>
       </DialogContent>
