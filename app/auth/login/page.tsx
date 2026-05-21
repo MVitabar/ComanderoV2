@@ -70,12 +70,6 @@ export default function LoginPage() {
         }
       }
 
-      // Redirect based on user state
-      if (user && !user.user_metadata?.profile_completed) {
-        router.push("/complete-profile")
-        return
-      }
-
       // Successful login
       router.push("/dashboard")
       toast.success("¡Bienvenido de nuevo!")
@@ -167,12 +161,12 @@ export default function LoginPage() {
                     onCheckedChange={(checked) => {
                       // Ensure we always pass a boolean value
                       const isChecked = checked === true;
-                      handleChange({ 
-                        target: { 
-                          name: 'rememberMe', 
-                          type: 'checkbox', 
-                          checked: isChecked 
-                        } 
+                      handleChange({
+                        target: {
+                          name: 'rememberMe',
+                          type: 'checkbox',
+                          checked: isChecked
+                        }
                       } as React.ChangeEvent<HTMLInputElement>);
                     }}
                     disabled={isLoading}
@@ -181,13 +175,6 @@ export default function LoginPage() {
                     Remember me
                   </Label>
                 </div>
-                <Link 
-                  href="/auth/forgot-password" 
-                  className="text-sm text-primary hover:underline disabled:opacity-50"
-                  tabIndex={isLoading ? -1 : 0}
-                >
-                  Forgot password?
-                </Link>
               </div>
 
               <Button type="submit" className="w-full" disabled={isLoading}>
