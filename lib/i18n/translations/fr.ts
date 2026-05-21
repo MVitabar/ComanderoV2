@@ -9,6 +9,18 @@ export const fr: Translation = {
     about: "À Propos",
     contact: "Contact",
   },
+  auth: {
+    login: "Se Connecter",
+    register: "S'inscrire",
+    email: "E-mail",
+    password: "Mot de passe",
+    forgotPassword: "Mot de passe oublié?",
+    noAccount: "Vous n'avez pas de compte?",
+    haveAccount: "Vous avez déjà un compte?",
+    signIn: "Se Connecter",
+    signUp: "S'inscrire",
+    logout: "Se Déconnecter"
+  },
   hero: {
     title: "Gestion de Restaurant Simplifiée",
     subtitle: "Optimisez Vos Opérations",

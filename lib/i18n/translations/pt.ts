@@ -9,6 +9,18 @@ export const pt: Translation = {
     about: "Sobre",
     contact: "Contato",
   },
+  auth: {
+    login: "Entrar",
+    register: "Registrar",
+    email: "E-mail",
+    password: "Senha",
+    forgotPassword: "Esqueceu sua senha?",
+    noAccount: "Não tem uma conta?",
+    haveAccount: "Já tem uma conta?",
+    signIn: "Entrar",
+    signUp: "Registrar",
+    logout: "Sair"
+  },
   hero: {
     title: "Gestão de Restaurante",
     subtitle: "da Próxima Geração",

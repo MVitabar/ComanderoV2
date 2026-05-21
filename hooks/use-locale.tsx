@@ -16,29 +16,42 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   // Usar un estado para manejar la hidratación
   const [mounted, setMounted] = useState(false)
   const [locale, setLocaleState] = useState<SupportedLocale>(defaultLocale)
-  const [t, setTranslation] = useState<Translation>(() => getTranslation(defaultLocale))
+  const [t, setTranslation] = useState<Translation>(() => {
+    const translation = getTranslation(defaultLocale)
+    console.log('Initial translation loaded:', translation)
+    return translation
+  })
 
   useEffect(() => {
     setMounted(true)
     // Solo acceder a localStorage en el cliente
-    const savedLocale = typeof window !== 'undefined' ? 
+    const savedLocale = typeof window !== 'undefined' ?
       localStorage.getItem("comandero-locale") as SupportedLocale : null
     const initialLocale = savedLocale || detectBrowserLocale()
+    console.log('Detected locale:', initialLocale)
     setLocaleState(initialLocale)
-    setTranslation(getTranslation(initialLocale))
+    const translation = getTranslation(initialLocale)
+    console.log('Translation loaded:', translation)
+    console.log('Has auth?', !!translation.auth)
+    setTranslation(translation)
   }, [])
 
   const setLocale = (newLocale: SupportedLocale) => {
     setLocaleState(newLocale)
-    setTranslation(getTranslation(newLocale))
+    const translation = getTranslation(newLocale)
+    setTranslation(translation)
     if (typeof window !== 'undefined') {
       localStorage.setItem("comandero-locale", newLocale)
     }
   }
 
-  // No renderizar nada hasta que el componente se monte en el cliente
+  // Si no está montado, renderizar con las traducciones por defecto
   if (!mounted) {
-    return null
+    return (
+      <LocaleContext.Provider value={{ locale: defaultLocale, setLocale, t }}>
+        {children}
+      </LocaleContext.Provider>
+    )
   }
 
   return (

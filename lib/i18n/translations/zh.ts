@@ -9,6 +9,18 @@ export const zh: Translation = {
     about: "关于我们",
     contact: "联系我们",
   },
+  auth: {
+    login: "登录",
+    register: "注册",
+    email: "电子邮件",
+    password: "密码",
+    forgotPassword: "忘记密码?",
+    noAccount: "没有账户?",
+    haveAccount: "已有账户?",
+    signIn: "登录",
+    signUp: "注册",
+    logout: "退出"
+  },
   hero: {
     title: "下一代",
     subtitle: "餐厅管理系统",

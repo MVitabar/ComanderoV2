@@ -9,6 +9,18 @@ export const ja: Translation = {
     about: "会社概要",
     contact: "お問い合わせ",
   },
+  auth: {
+    login: "ログイン",
+    register: "登録",
+    email: "メール",
+    password: "パスワード",
+    forgotPassword: "パスワードを忘れた?",
+    noAccount: "アカウントをお持ちでない?",
+    haveAccount: "すでにアカウントをお持ち?",
+    signIn: "ログイン",
+    signUp: "登録",
+    logout: "ログアウト"
+  },
   hero: {
     title: "次世代の",
     subtitle: "レストラン管理",

@@ -9,6 +9,18 @@ export const ar: Translation = {
     about: "من نحن",
     contact: "اتصل بنا",
   },
+  auth: {
+    login: "تسجيل الدخول",
+    register: "التسجيل",
+    email: "البريد الإلكتروني",
+    password: "كلمة المرور",
+    forgotPassword: "نسيت كلمة المرور؟",
+    noAccount: "ليس لديك حساب؟",
+    haveAccount: "لديك حساب بالفعل؟",
+    signIn: "تسجيل الدخول",
+    signUp: "التسجيل",
+    logout: "تسجيل الخروج"
+  },
   hero: {
     title: "إدارة المطاعم",
     subtitle: "للجيل القادم",

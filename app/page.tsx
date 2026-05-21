@@ -20,9 +20,12 @@ export default function LandingPage() {
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    console.log('Page mounted:', mounted)
+    console.log('Translations:', t)
+    console.log('Auth translations:', t?.auth)
+  }, [t])
 
-  if (!mounted || !t?.auth) {
+  if (!mounted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="flex items-center justify-center min-h-screen">
@@ -66,17 +69,17 @@ export default function LandingPage() {
 
             {/* Auth Buttons - Always visible on mobile */}
             <div className="flex items-center space-x-2 sm:space-x-4">
-              <Link 
-                href="/auth/login" 
+              <Link
+                href="/auth/login"
                 className="hidden sm:inline-flex items-center justify-center px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
               >
-                {t.auth.login}
+                {t.auth?.login || 'Login'}
               </Link>
               <Link
                 href="/auth/register"
                 className="inline-flex items-center justify-center px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-red-500 rounded-md hover:opacity-90 transition-opacity"
               >
-                {t.auth.register}
+                {t.auth?.register || 'Register'}
               </Link>
               
               {/* Mobile menu button */}
@@ -129,14 +132,14 @@ export default function LandingPage() {
                   className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {t.auth.login}
+                  {t.auth?.login || 'Login'}
                 </Link>
                 <Link
                   href="/auth/register"
                   className="mt-2 block w-full text-center px-3 py-2 rounded-md text-base font-medium text-white bg-gradient-to-r from-orange-500 to-red-500 hover:opacity-90"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  {t.auth.register}
+                  {t.auth?.register || 'Register'}
                 </Link>
               </div>
             </div>

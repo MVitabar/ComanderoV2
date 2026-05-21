@@ -1,4 +1,4 @@
-export type SupportedLocale = "en" | "es" | "fr" | "de" | "it" | "pt"
+export type SupportedLocale = "en" | "es" | "fr" | "de" | "it" | "pt" | "zh" | "ja" | "ar"
 
 export interface Translation {
   header: {
