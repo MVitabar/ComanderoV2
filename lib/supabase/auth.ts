@@ -1,4 +1,4 @@
-import { createClient, createServiceClient, supabase } from './client';
+import { createClient, supabase } from './client';
 
 export type SignInCredentials = {
   email: string;
@@ -172,7 +172,7 @@ export class AuthService {
   static async signUp(data: RegisterData) {
     try {
       console.log('Iniciando registro para:', data.email);
-      
+
       // 1. Crear usuario en Auth
       console.log('Creando usuario en Auth...');
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -190,93 +190,41 @@ export class AuthService {
 
       if (authError) throw authError;
       if (!authData.user) throw new Error('No se pudo crear el usuario');
-      
+
       console.log('Usuario creado en Auth, ID:', authData.user.id);
 
-      // 2. Crear/Actualizar perfil en la tabla de perfiles
-      console.log('Creando/Actualizando perfil...');
-      const profileData = {
-        id: authData.user.id,
-        email: data.email,
-        first_name: data.firstName,
-        last_name: data.lastName,
-        phone: data.phone || '',
-        status: 'pending_verification',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        role: 'owner',
-        // Eliminamos el objeto permissions y usamos columnas booleanas individuales
-        tables: true,
-        orders: true,
-        kitchen: true,
-        inventory: true,
-        reports: true,
-        users: true,
-        settings: true,
-      };
+      // 2. Crear perfil y establecimiento vía API route (servidor)
+      console.log('Creando perfil y establecimiento...');
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: authData.user.id,
+          email: data.email,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
+          establishmentName: data.establishmentName,
+          establishmentType: data.establishmentType,
+          address: data.address,
+          city: data.city,
+          state: data.state,
+          zipCode: data.zipCode,
+          country: data.country,
+          timezone: data.timezone,
+          plan: data.plan,
+        }),
+      });
 
-      const serviceClient = createServiceClient();
-      const { error: profileError } = await serviceClient
-        .from('profiles')
-        .upsert(profileData);
-
-      if (profileError) {
-        console.error('Error al crear/actualizar perfil:', profileError);
-        throw new Error(profileError.message);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al crear perfil y establecimiento');
       }
 
-      console.log('Perfil creado/actualizado correctamente');
-
-      // 3. Crear establecimiento
-      console.log('Creando establecimiento...');
-      const establishmentData = {
-        name: data.establishmentName,
-        type: data.establishmentType,
-        address: data.address,
-        city: data.city,
-        state: data.state,
-        zip_code: data.zipCode,
-        country: data.country,
-        phone: data.phone,
-        timezone: data.timezone || 'America/Argentina/Buenos_Aires',
-        owner_id: authData.user.id,
-        status: 'active',
-        plan: data.plan || 'trial',
-        trial_ends_at: data.plan === 'trial'
-          ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() // 14 días de prueba
-          : null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        // Campos adicionales requeridos
-        currency: 'ARS',
-        language: 'es',
-        settings: {},
-        email: data.email
-      };
-
-      const { data: establishmentResult, error: establishmentError } = await serviceClient
-        .from('establishments')
-        .insert([establishmentData])
-        .select('*')
-        .single();
-
-      if (establishmentError) {
-        console.error('Error al crear el establecimiento:', establishmentError);
-        throw establishmentError;
-      }
-
-      console.log('Establecimiento creado con ID:', establishmentResult.id);
-
-      // 4. Asociar el usuario al establecimiento
-      const { error: userEstablishmentError } = await serviceClient
-        .from('profiles')
-        .update({ establishment_id: establishmentResult.id })
-        .eq('id', authData.user.id);
-
-      if (userEstablishmentError) {
-        console.error('Error al asociar usuario con establecimiento:', userEstablishmentError);
-        // No lanzamos error aquí para no interrumpir el flujo
-      }
+      const result = await response.json();
+      console.log('Perfil y establecimiento creados correctamente');
 
       // 5. Enviar correo de verificación
       console.log('Enviando correo de verificación...');
@@ -293,10 +241,10 @@ export class AuthService {
         // No lanzamos error aquí para no interrumpir el flujo
       }
 
-      return { 
-        user: authData.user, 
-        establishment: establishmentResult,
-        session: authData.session 
+      return {
+        user: authData.user,
+        establishment: { id: result.establishmentId },
+        session: authData.session
       };
     } catch (error) {
       console.error('Error durante el registro:', error);
