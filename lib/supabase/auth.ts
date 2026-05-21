@@ -123,7 +123,7 @@ export class AuthService {
 
       // Obtener el perfil del usuario
       const { data: profile, error: profileError } = await supabase
-        .from('users')
+        .from('profiles')
         .select('*')
         .eq('id', data.user.id)
         .maybeSingle();
@@ -269,7 +269,7 @@ export class AuthService {
 
       // Actualizar el estado de verificación en la base de datos
       const { error: updateError } = await supabase
-        .from("users")
+        .from("profiles")
         .update({ status: "active" })
         .eq("id", data.user.id);
 
